@@ -12,7 +12,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git@github.com:kishek/graph-store.git"
+    "url": "git+ssh://git@github.com/kishek/graph-store.git"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com/"
@@ -20,7 +20,8 @@
   "scripts": {
     "compile": "tsc -p tsconfig.compile.json",
     "clean": "rimraf -rf ./dist && rm -f ./*tsbuildinfo",
-    "test": "jest --rootDir ./src",
+    "test": "vitest",
+    "publish:remote:dry-run": "yarn compile && npm publish --dry-run",
     "publish:remote": "yarn compile && npm publish"
   },
   "license": "MIT",
