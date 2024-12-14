@@ -1,0 +1,28 @@
+{
+  "include": ["./**/*.ts"],
+  "exclude": ["./dist"],
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./",
+    "baseUrl": "./",
+    "incremental": true,
+    "target": "esnext",
+    "module": "commonjs",
+    "lib": ["es2020", "DOM"],
+    "declaration": true,
+    "composite": true,
+    "noEmit": false,
+    "strict": true,
+    "noImplicitAny": true,
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "isolatedModules": true,
+    "types": ["@cloudflare/workers-types/experimental", "@cloudflare/vitest-pool-workers"]
+  },
+  "references": []
+}

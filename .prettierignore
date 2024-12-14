@@ -1,0 +1,19 @@
+# Ignore generated changelog files.
+**/CHANGELOG.md
+
+# Ignore generated build files.
+**/dist/**
+**/dist-performance/**
+
+# Ignore coverage.
+coverage/**
+
+# Ignore vscode config
+.vscode
+
+# Ignore typescript
+tsbuildinfo
+
+# Ignore node
+node_modules
+.yarn/

@@ -1,0 +1,53 @@
+{
+  "name": "@kishek/graph-store",
+  "version": "1.0.0",
+  "description": "A graph store built on top of Durable Objects for highly connected data.",
+  "main": "./dist/storage.js",
+  "types": "./dist/storage.js",
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:kishek/graph-store.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/"
+  },
+  "scripts": {
+    "compile": "tsc -p tsconfig.json",
+    "clean": "rimraf -rf ./dist && rm -f ./*tsbuildinfo",
+    "test": "jest --rootDir ./src",
+    "publish:remote": "yarn compile && npm publish"
+  },
+  "license": "MIT",
+  "packageManager": "yarn@4.5.3",
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.5.36",
+    "@cloudflare/workers-types": "^4.20241205.0",
+    "@types/jest": "^29.5.14",
+    "@types/node": "ts5.7",
+    "jest": "^29.7.0",
+    "typescript": "^5.7.2",
+    "vitest": "2.1.8"
+  },
+  "dependencies": {
+    "@badrap/result": "^0.2.13"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/storage.js",
+      "require": "./dist/storage.js"
+    },
+    "./errors": {
+      "import": "./dist/storage-errors.js",
+      "require": "./dist/storage-errors.js"
+    },
+    "./client": {
+      "import": "./dist/storage-client.js",
+      "require": "./dist/storage-client.js"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "displayName": {
+    "name": "@knowledge/ts-model-toolkit",
+    "color": "orange"
+  },
+  "transform": {
+    "^.+\\.(t|j)sx?$": ["@swc/jest"]
+  },
+  "testEnvironment": "node",
+  "testMatch": ["**/?(*.)+(spec|test).[jt]s?(x)"],
+  "testPathIgnorePatterns": ["/node_modules", "/dist/"],
+  "modulePathIgnorePatterns": ["<rootDir>/dist/"],
+  "moduleNameMapper": {}
+}

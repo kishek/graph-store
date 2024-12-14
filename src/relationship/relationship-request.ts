@@ -1,0 +1,106 @@
+export type RelationshipName = string & { _relationshipRole: symbol };
+
+export type RelationshipRequest = {
+  nodeA: string;
+  nodeB: string;
+  nodeAToBRelationshipName: RelationshipName;
+  nodeBToARelationshipName: RelationshipName;
+};
+export type RelationshipTuple = [string, string];
+export type RelationshipData = Set<string>;
+export type RelationshipNameData = string;
+export type RelationshipItem = {
+  relationshipId: string;
+  nodeA: string;
+  nodeB: string;
+};
+
+export type CreateRelationshipRequest = RelationshipRequest;
+export type CreateRelationshipResponse = { success: boolean };
+
+export type CreateRelationshipBatchRequest = RelationshipRequest[];
+export type CreateRelationshipBatchResponse = { success: boolean };
+
+export type ReadRelationshipRequest = {
+  nodeA: string;
+  nodeB: string;
+  name: RelationshipName;
+};
+export type ReadRelationshipResponse = { exists: boolean };
+
+export type RemoveRelationshipRequest =
+  | {
+      nodeA: string;
+      nodeB: string;
+      nodeAToBRelationshipName: RelationshipName;
+      nodeBToARelationshipName: RelationshipName;
+    }
+  | { node: string };
+export type RemoveRelationshipResponse = { success: boolean };
+
+export type RemoveRelationshipBatchRequest = RelationshipRequest[];
+export type RemoveRelationshipBatchResponse = { success: boolean };
+
+export type ListRelationshipRequest = {
+  name: RelationshipName;
+  node: string;
+  first?: number;
+  last?: number;
+  before?: string;
+  after?: string;
+};
+export type ListRelationshipResponse = {
+  relationships: string[];
+  hasBefore: boolean;
+  hasAfter: boolean;
+};
+
+export const isCreateRelationshipRequest = (
+  body: any,
+): body is CreateRelationshipRequest => {
+  return (
+    body &&
+    typeof body.nodeA === 'string' &&
+    typeof body.nodeB === 'string' &&
+    typeof body.nodeAToBRelationshipName === 'string' &&
+    typeof body.nodeBToARelationshipName === 'string'
+  );
+};
+
+export const isCreateRelationshipBatchRequest = (
+  body: any,
+): body is CreateRelationshipBatchRequest => {
+  return body && Array.isArray(body) && body.every(isCreateRelationshipRequest);
+};
+
+export const isReadRelationshipRequest = (body: any): body is ReadRelationshipRequest => {
+  return (
+    body &&
+    typeof body.nodeA === 'string' &&
+    typeof body.nodeB === 'string' &&
+    typeof body.name === 'string'
+  );
+};
+
+export const isRemoveRelationshipRequest = (
+  body: any,
+): body is RemoveRelationshipRequest => {
+  return (
+    body &&
+    ((typeof body.nodeA === 'string' &&
+      typeof body.nodeB === 'string' &&
+      typeof body.nodeAToBRelationshipName === 'string' &&
+      typeof body.nodeBToARelationshipName === 'string') ||
+      typeof body.node === 'string')
+  );
+};
+
+export const isRemoveRelationshipBatchRequest = (
+  body: any,
+): body is RemoveRelationshipBatchRequest => {
+  return body && Array.isArray(body) && body.every(isRemoveRelationshipRequest);
+};
+
+export const isListRelationshipRequest = (body: any): body is ListRelationshipRequest => {
+  return body && typeof body.name === 'string';
+};

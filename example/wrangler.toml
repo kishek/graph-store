@@ -1,0 +1,11 @@
+name = "worker-storage"
+main = './index.ts'
+compatibility_date = "2022-10-31"
+compatibility_flags = ["nodejs_compat", "nodejs_compat_v2"]
+
+[durable_objects]
+bindings = [{ name = "GRAPH_STORAGE", class_name = "Storage" }]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["Storage"]
