@@ -18,7 +18,7 @@
     "registry": "https://npm.pkg.github.com/"
   },
   "scripts": {
-    "compile": "tsc -p tsconfig.json",
+    "compile": "tsc -p tsconfig.compile.json",
     "clean": "rimraf -rf ./dist && rm -f ./*tsbuildinfo",
     "test": "jest --rootDir ./src",
     "publish:remote": "yarn compile && npm publish"
