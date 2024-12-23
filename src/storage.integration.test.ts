@@ -309,6 +309,48 @@ test('creating entity in database creates entry in storage index', async () => {
   });
 });
 
+test('creating entity in database does not yield indexed entry', async () => {
+  const client = getStorageClient();
+
+  await client.createIndex({ property: 'a' });
+  const result = await client.createQuery<TestEntity>({
+    key: 'entity-a',
+    value: {
+      a: 1,
+      b: 2,
+      c: 3,
+    },
+  });
+
+  expect(result.unwrap()).toMatchObject({
+    a: 1,
+    b: 2,
+    c: 3,
+  });
+});
+
+test('creating multiple entities in database does not yield indexed entries', async () => {
+  const client = getStorageClient();
+
+  await client.createIndex({ property: 'a' });
+  const result = await client.batchCreateQuery<TestEntity>({
+    entries: {
+      'entity-a': {
+        a: 1,
+        b: 2,
+        c: 3,
+      },
+      'entity-b': {
+        a: 4,
+        b: 5,
+        c: 6,
+      },
+    },
+  });
+
+  expect(result.unwrap()).toHaveLength(2);
+});
+
 test('reads entity in database using indexed key', async () => {
   const client = getStorageClient();
 

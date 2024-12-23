@@ -86,13 +86,25 @@ export class QueryHandler {
     const query = info.body<BatchCreateQueryRequest<T>>(isBatchCreateQueryRequest);
 
     const entries: Record<string, T & { id: string }> = {};
-    for (const inputKey of Object.keys(query.entries)) {
+
+    const inputKeys = new Set(Object.keys(query.entries));
+    const inputEntries: Record<string, T & { id: string }> = {};
+
+    for (const inputKey of inputKeys) {
       const rows = this.indexHandler.enhanceWritePayload(
         inputKey,
         query.entries[inputKey],
       );
       for (const row of rows) {
-        entries[row[0]] = { ...row[1], id: row[1].id ?? row[0] };
+        const id = row[0];
+        const entry = { ...row[1], id: row[1].id ?? row[0] };
+
+        if (inputKeys.has(id)) {
+          entries[id] = entry;
+          inputEntries[id] = entry;
+        } else {
+          entries[id] = entry;
+        }
       }
     }
 
@@ -100,7 +112,7 @@ export class QueryHandler {
       await transaction.put(entries);
     });
 
-    return Result.ok(Object.values(entries));
+    return Result.ok(Object.values(inputEntries));
   }
 
   private async readQuery<T>(
