@@ -108,6 +108,13 @@ interface TestEntity {
   c: number;
 }
 
+interface TestEntityWithId {
+  id: string;
+  a: number;
+  b: number;
+  c: number;
+}
+
 test('creates entity in database', async () => {
   const client = getStorageClient();
   await client.createQuery<TestEntity>({
@@ -319,6 +326,64 @@ test('reads entity in database using indexed key', async () => {
   expect(items.unwrap()).toMatchObject({
     a: 1,
   });
+});
+
+test('reads entity in database using indexed key with unchanged id', async () => {
+  const client = getStorageClient();
+
+  await client.createIndex({ property: 'a' });
+  await client.createQuery<TestEntityWithId>({
+    key: 'entity-a',
+    value: {
+      id: 'entity-a-id',
+      a: 1,
+      b: 2,
+      c: 3,
+    },
+  });
+
+  const items = await client.readQuery<TestEntityWithId>({ key: '1', index: 'a' });
+  expect(items.unwrap()).toMatchObject({
+    id: 'entity-a-id',
+  });
+});
+
+test('reads multiple entities in database using indexed key with unchanged ids', async () => {
+  const client = getStorageClient();
+
+  await client.createIndex({ property: 'a' });
+  await client.createQuery<TestEntityWithId>({
+    key: 'entity-a',
+    value: {
+      id: 'entity-a-id',
+      a: 1,
+      b: 2,
+      c: 3,
+    },
+  });
+  await client.createQuery<TestEntityWithId>({
+    key: 'entity-b',
+    value: {
+      id: 'entity-b-id',
+      a: 4,
+      b: 5,
+      c: 6,
+    },
+  });
+
+  const items = await client.batchReadQuery<TestEntityWithId>({
+    keys: ['entity-a', 'entity-b'],
+  });
+  expect(items.unwrap()).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        id: 'entity-a-id',
+      }),
+      expect.objectContaining({
+        id: 'entity-b-id',
+      }),
+    ]),
+  );
 });
 
 test('updating an entity in database also updates value in index', async () => {

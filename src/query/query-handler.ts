@@ -80,7 +80,7 @@ export class QueryHandler {
     return Result.ok(value);
   }
 
-  private async batchCreateQuery<T>(
+  private async batchCreateQuery<T extends { id?: string }>(
     info: RequestInfo,
   ): Promise<Result<BatchCreateQueryResponse<T>, StorageError>> {
     const query = info.body<BatchCreateQueryRequest<T>>(isBatchCreateQueryRequest);
@@ -92,7 +92,7 @@ export class QueryHandler {
         query.entries[inputKey],
       );
       for (const row of rows) {
-        entries[row[0]] = { ...row[1], id: row[0] };
+        entries[row[0]] = { ...row[1], id: row[1].id ?? row[0] };
       }
     }
 
