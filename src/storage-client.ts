@@ -44,14 +44,21 @@ import {
 import { StorageRequest } from './storage-request';
 
 export class HTTPError extends Error {
-  constructor(message: string) {
+  private status: number;
+
+  constructor(status: number, message: string) {
     super();
     this.message = message;
     this.name = 'HTTPError';
+    this.status = status;
   }
 
   static from(status: number, reason: string) {
-    return new HTTPError(`${status}: ${reason ?? 'no reason provided'}`);
+    return new HTTPError(status, `${status}: ${reason ?? 'no reason provided'}`);
+  }
+
+  get statusCode() {
+    return this.status;
   }
 }
 

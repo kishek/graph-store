@@ -22,7 +22,7 @@
     "clean": "rimraf -rf ./dist && rm -f ./*tsbuildinfo",
     "test": "vitest",
     "publish:remote:dry-run": "yarn compile && npm publish --dry-run",
-    "publish:remote": "yarn compile && npm publish"
+    "publish:remote": "yarn compile && npm version patch && npm publish"
   },
   "license": "MIT",
   "packageManager": "yarn@4.5.3",
