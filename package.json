@@ -48,6 +48,18 @@
     "./client": {
       "import": "./dist/storage-client.js",
       "require": "./dist/storage-client.js"
+    },
+    "./index/types": {
+      "import": "./dist/index/index-request.d.ts",
+      "require": "./dist/index/index-request.d.ts"
+    },
+    "./query/types": {
+      "import": "./dist/query/query-request.d.ts",
+      "require": "./dist/query/query-request.d.ts"
+    },
+    "./relationship/types": {
+      "import": "./dist/relationship/relationship-request.d.ts",
+      "require": "./dist/relationship/relationship-request.d.ts"
     }
   }
 }
