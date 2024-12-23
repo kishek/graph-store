@@ -37,7 +37,7 @@ export class QueryHandler {
     private relationshipHandler: RelationshipHandler,
   ) {}
 
-  async handle<T>(info: RequestInfo) {
+  async handle<T extends { id?: string }>(info: RequestInfo) {
     switch (info.operation) {
       case 'create': {
         return await this.createQuery<T>(info);
@@ -66,11 +66,11 @@ export class QueryHandler {
     }
   }
 
-  private async createQuery<T>(
+  private async createQuery<T extends { id?: string }>(
     info: RequestInfo,
   ): Promise<Result<CreateQueryResponse<T>, StorageError>> {
     const input = info.body<CreateQueryRequest<T>>(isCreateQueryRequest);
-    const value = { ...input.value, id: input.key };
+    const value = { ...input.value, id: input.value.id ?? input.key };
     const items = this.indexHandler.enhanceWritePayload(input.key, value);
 
     await this.state.storage.transaction(async (transaction) => {
