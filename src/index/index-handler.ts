@@ -132,21 +132,26 @@ export class IndexHandler {
     return Object.entries(items);
   }
 
+  getIndexedKeys<T = Record<string, string | number>>(value: T): string[] {
+    const properties = Object.keys(value as object);
+    const indexes = this.getApplicableIndexes(properties);
+
+    return indexes.map((index) =>
+      this.keyForIndex(index.property, (value as any)[index.property]),
+    );
+  }
+
   enhanceDeletePayload(key: string, toDelete: string[]) {
     this.indexes.forEach((index) => {
       toDelete.push(this.keyForIndex(index.property, key));
     });
   }
 
-  computeDanglingItems<T>(currentValue: Partial<T>, updateValue: Partial<T>): string[] {
-    if (!currentValue && !updateValue) {
-      return [];
-    }
+  computeDanglingKeys<T>(currentValue: T, updatedValue: T): string[] {
+    const indexedKeysFromCurrent = this.getIndexedKeys(currentValue);
+    const indexedKeysAfterUpdate = this.getIndexedKeys(updatedValue);
 
-    const originalKeys = Object.keys(currentValue);
-    const updatedKeys = Object.keys(updateValue);
-
-    return updatedKeys.filter((k) => originalKeys.includes(k));
+    return indexedKeysFromCurrent.filter((key) => !indexedKeysAfterUpdate.includes(key));
   }
 
   private getApplicableIndexes(properties: string[]) {

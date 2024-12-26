@@ -26,6 +26,8 @@ import {
   BatchReadQueryResponse,
   BatchCreateQueryRequest,
   BatchCreateQueryResponse,
+  BatchUpdateQueryRequest,
+  BatchUpdateQueryResponse,
 } from './query/query-request';
 import {
   CreateRelationshipRequest,
@@ -219,6 +221,19 @@ export class StorageClient {
         request({
           type: 'query',
           operation: 'update',
+          request: opts,
+        }),
+      ),
+    );
+  }
+
+  public batchUpdateQuery<T>(opts: BatchUpdateQueryRequest<T>) {
+    return response<BatchUpdateQueryResponse<T>>(
+      this.api.fetch(
+        'https://durable-object.com/',
+        request({
+          type: 'query',
+          operation: 'batchUpdate',
           request: opts,
         }),
       ),

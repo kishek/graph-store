@@ -268,6 +268,89 @@ test('updates entity in database', async () => {
   });
 });
 
+test('batch updates entities in database', async () => {
+  const client = getStorageClient();
+  await client.batchCreateQuery<TestEntity>({
+    entries: {
+      'entity-a': {
+        a: 1,
+        b: 2,
+        c: 3,
+      },
+      'entity-b': {
+        a: 4,
+        b: 5,
+        c: 6,
+      },
+    },
+  });
+
+  await client.batchUpdateQuery<TestEntity>({
+    entries: {
+      'entity-a': {
+        a: 101,
+      },
+      'entity-b': {
+        a: 104,
+      },
+    },
+  });
+
+  const items = await client.listQuery<TestEntity>({ key: 'entity' });
+  expect(items.unwrap()).toMatchObject({
+    'entity-a': {
+      a: 101,
+    },
+    'entity-b': {
+      a: 104,
+    },
+  });
+});
+
+test('batch updates entities in database including indexes', async () => {
+  const client = getStorageClient();
+
+  await client.createIndex({ property: 'a' });
+  await client.batchCreateQuery<TestEntity>({
+    entries: {
+      'entity-a': {
+        a: 1,
+        b: 2,
+        c: 3,
+      },
+      'entity-b': {
+        a: 4,
+        b: 5,
+        c: 6,
+      },
+    },
+  });
+
+  await client.batchUpdateQuery<TestEntity>({
+    entries: {
+      'entity-a': {
+        a: 101,
+      },
+      'entity-b': {
+        a: 104,
+      },
+    },
+  });
+
+  const items = await client.listQuery<TestEntity>({ index: 'a' });
+  const results = items.unwrap();
+
+  expect(results).toMatchObject({
+    'entity-a': {
+      a: 101,
+    },
+    'entity-b': {
+      a: 104,
+    },
+  });
+  expect(Object.keys(results)).toHaveLength(2);
+});
+
 test('removes entity in database', async () => {
   const client = getStorageClient();
   const result = await client.createQuery<TestEntity>({

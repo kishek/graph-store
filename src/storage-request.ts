@@ -7,6 +7,7 @@ type ItemOperation =
   | 'remove'
   | 'list'
   | 'batchRead'
+  | 'batchUpdate'
   | 'batchCreate';
 type RelationshipOperation =
   | 'create'

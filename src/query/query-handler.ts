@@ -19,6 +19,9 @@ import {
   BatchCreateQueryResponse,
   isBatchCreateQueryRequest,
   BatchCreateQueryRequest,
+  BatchUpdateQueryRequest,
+  isBatchUpdateQueryRequest,
+  BatchUpdateQueryResponse,
 } from './query-request';
 import { IndexHandler } from '../index/index-handler';
 import { RelationshipHandler } from '../relationship/relationship-handler';
@@ -54,6 +57,9 @@ export class QueryHandler {
       case 'update': {
         return await this.updateQuery<T>(info);
       }
+      case 'batchUpdate': {
+        return await this.batchUpdateQuery<T>(info);
+      }
       case 'remove': {
         return await this.removeQuery(info);
       }
@@ -87,10 +93,10 @@ export class QueryHandler {
 
     const entries: Record<string, T & { id: string }> = {};
 
-    const inputKeys = new Set(Object.keys(query.entries));
-    const inputEntries: Record<string, T & { id: string }> = {};
+    const keysFromInput = new Set(Object.keys(query.entries));
+    const entriesFromInputKeys: Record<string, T & { id: string }> = {};
 
-    for (const inputKey of inputKeys) {
+    for (const inputKey of keysFromInput) {
       const rows = this.indexHandler.enhanceWritePayload(
         inputKey,
         query.entries[inputKey],
@@ -99,9 +105,9 @@ export class QueryHandler {
         const id = row[0];
         const entry = { ...row[1], id: row[1].id ?? row[0] };
 
-        if (inputKeys.has(id)) {
+        if (keysFromInput.has(id)) {
           entries[id] = entry;
-          inputEntries[id] = entry;
+          entriesFromInputKeys[id] = entry;
         } else {
           entries[id] = entry;
         }
@@ -112,7 +118,7 @@ export class QueryHandler {
       await transaction.put(entries);
     });
 
-    return Result.ok(Object.values(inputEntries));
+    return Result.ok(Object.values(entriesFromInputKeys));
   }
 
   private async readQuery<T>(
@@ -158,7 +164,7 @@ export class QueryHandler {
     const updateValue = { ...currentValue, ...nextValue };
 
     const items = this.indexHandler.enhanceWritePayload(key, updateValue);
-    const dangling = this.indexHandler.computeDanglingItems(currentValue, updateValue);
+    const dangling = this.indexHandler.computeDanglingKeys(currentValue, updateValue);
 
     await this.state.storage.transaction(async (transaction) => {
       items.forEach(([key]) => transaction.put(key, updateValue));
@@ -166,6 +172,45 @@ export class QueryHandler {
     });
 
     return Result.ok(updateValue);
+  }
+
+  private async batchUpdateQuery<T>(
+    info: RequestInfo,
+  ): Promise<Result<BatchUpdateQueryResponse<T>, StorageError>> {
+    const query = info.body<BatchUpdateQueryRequest<T>>(isBatchUpdateQueryRequest);
+
+    const keys = Object.keys(query.entries);
+    const items = await this.state.storage.get<ReadQueryResponse<T>>(keys);
+    if (items.size !== keys.length) {
+      return Result.err(new StorageNotFoundError());
+    }
+
+    const entries: Record<string, T & { id: string }> = {};
+    const entriesFromInputKeys: Record<string, T & { id: string }> = {};
+    const dangling = new Set<string>();
+
+    for (const [id, currentValue] of items) {
+      const updateValue = query.entries[id];
+      const nextValue = { ...currentValue, ...updateValue };
+
+      const itemsToUpdate = this.indexHandler.enhanceWritePayload(id, updateValue);
+      const itemsDangling = this.indexHandler.computeDanglingKeys(
+        currentValue,
+        nextValue,
+      );
+
+      itemsToUpdate.forEach(([key]) => (entries[key] = nextValue));
+      itemsDangling.forEach((key) => dangling.add(key));
+
+      entriesFromInputKeys[id] = nextValue;
+    }
+
+    await this.state.storage.transaction(async (transaction) => {
+      await transaction.put(entries);
+      await transaction.delete(Array.from(dangling));
+    });
+
+    return Result.ok(Object.values(entriesFromInputKeys));
   }
 
   private async removeQuery(
