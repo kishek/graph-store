@@ -35,6 +35,12 @@ export type BatchUpdateQueryRequest<T> = {
 };
 export type BatchUpdateQueryResponse<T> = QueryResponse<T>[];
 
+export type BatchUpsertQueryRequest<T> = {
+  entries: Record<string, T>;
+  index?: string;
+};
+export type BatchUpsertQueryResponse<T> = QueryResponse<T>[];
+
 export type RemoveQueryRequest = Omit<Pick<QueryRequest, 'key' | 'index'>, 'index'>;
 export type RemoveQueryResponse = { success: boolean };
 
@@ -55,6 +61,11 @@ export const isUpdateQueryRequest = <T>(body: any): body is UpdateQueryRequest<T
 export const isBatchUpdateQueryRequest = <T>(
   body: any,
 ): body is BatchUpdateQueryRequest<T> => {
+  return body?.entries && Object.keys(body.entries).length > 0;
+};
+export const isBatchUpsertQueryRequest = <T>(
+  body: any,
+): body is BatchUpsertQueryRequest<T> => {
   return body?.entries && Object.keys(body.entries).length > 0;
 };
 export const isReadQueryRequest = (body: any): body is ReadQueryRequest => {

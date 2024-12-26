@@ -22,6 +22,9 @@ import {
   BatchUpdateQueryRequest,
   isBatchUpdateQueryRequest,
   BatchUpdateQueryResponse,
+  BatchUpsertQueryResponse,
+  BatchUpsertQueryRequest,
+  isBatchUpsertQueryRequest,
 } from './query-request';
 import { IndexHandler } from '../index/index-handler';
 import { RelationshipHandler } from '../relationship/relationship-handler';
@@ -59,6 +62,9 @@ export class QueryHandler {
       }
       case 'batchUpdate': {
         return await this.batchUpdateQuery<T>(info);
+      }
+      case 'batchUpsert': {
+        return await this.batchUpsertQuery<T>(info);
       }
       case 'remove': {
         return await this.removeQuery(info);
@@ -179,38 +185,15 @@ export class QueryHandler {
   ): Promise<Result<BatchUpdateQueryResponse<T>, StorageError>> {
     const query = info.body<BatchUpdateQueryRequest<T>>(isBatchUpdateQueryRequest);
 
-    const keys = Object.keys(query.entries);
-    const items = await this.state.storage.get<ReadQueryResponse<T>>(keys);
-    if (items.size !== keys.length) {
-      return Result.err(new StorageNotFoundError());
-    }
+    return this.doBatchUpdate<T>(query.entries, true);
+  }
 
-    const entries: Record<string, T & { id: string }> = {};
-    const entriesFromInputKeys: Record<string, T & { id: string }> = {};
-    const dangling = new Set<string>();
+  private async batchUpsertQuery<T>(
+    info: RequestInfo,
+  ): Promise<Result<BatchUpsertQueryResponse<T>, StorageError>> {
+    const query = info.body<BatchUpsertQueryRequest<T>>(isBatchUpsertQueryRequest);
 
-    for (const [id, currentValue] of items) {
-      const updateValue = query.entries[id];
-      const nextValue = { ...currentValue, ...updateValue };
-
-      const itemsToUpdate = this.indexHandler.enhanceWritePayload(id, updateValue);
-      const itemsDangling = this.indexHandler.computeDanglingKeys(
-        currentValue,
-        nextValue,
-      );
-
-      itemsToUpdate.forEach(([key]) => (entries[key] = nextValue));
-      itemsDangling.forEach((key) => dangling.add(key));
-
-      entriesFromInputKeys[id] = nextValue;
-    }
-
-    await this.state.storage.transaction(async (transaction) => {
-      await transaction.put(entries);
-      await transaction.delete(Array.from(dangling));
-    });
-
-    return Result.ok(Object.values(entriesFromInputKeys));
+    return this.doBatchUpdate<T>(query.entries, false);
   }
 
   private async removeQuery(
@@ -247,6 +230,46 @@ export class QueryHandler {
     items.forEach((value) => response.set(value.id, value));
 
     return Result.ok(Object.fromEntries(response));
+  }
+
+  private async doBatchUpdate<T>(
+    input: Record<string, Partial<T>>,
+    throwOnMissingKey: boolean,
+  ): Promise<Result<BatchUpsertQueryResponse<T>, StorageError>> {
+    const keys = Object.keys(input);
+
+    const items = await this.state.storage.get<ReadQueryResponse<T>>(keys);
+    if (throwOnMissingKey && items.size !== keys.length) {
+      return Result.err(new StorageNotFoundError());
+    }
+
+    const entries: Record<string, T & { id: string }> = {};
+    const entriesFromInputKeys: Record<string, T & { id: string }> = {};
+    const dangling = new Set<string>();
+
+    for (const key of keys) {
+      const currentValue = items.get(key) ?? { id: key };
+      const updateValue = input[key];
+      const nextValue = { ...currentValue, ...updateValue } as T & { id: string };
+
+      const itemsToUpdate = this.indexHandler.enhanceWritePayload(key, updateValue);
+      const itemsDangling = this.indexHandler.computeDanglingKeys(
+        currentValue,
+        nextValue,
+      );
+
+      itemsToUpdate.forEach(([key]) => (entries[key] = nextValue));
+      itemsDangling.forEach((key) => dangling.add(key));
+
+      entriesFromInputKeys[key] = nextValue;
+    }
+
+    await this.state.storage.transaction(async (transaction) => {
+      await transaction.put(entries);
+      await transaction.delete(Array.from(dangling));
+    });
+
+    return Result.ok(Object.values(entriesFromInputKeys));
   }
 
   private keyFromQuery(key: string | undefined, index: string | undefined) {
