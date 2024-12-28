@@ -205,7 +205,7 @@ export class QueryHandler {
     this.indexHandler.enhanceDeletePayload(key, keys);
 
     const deleted = await this.state.storage.delete(keys);
-    if (deleted !== keys.length) {
+    if (deleted === 0) {
       return Result.err(new StorageDeleteFailedError());
     }
 
