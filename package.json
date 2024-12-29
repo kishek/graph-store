@@ -29,12 +29,14 @@
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.5.36",
     "@cloudflare/workers-types": "^4.20241205.0",
+    "@types/lodash.chunk": "^4",
     "@types/node": "ts5.7",
     "typescript": "^5.7.2",
     "vitest": "2.1.8"
   },
   "dependencies": {
-    "@badrap/result": "^0.2.13"
+    "@badrap/result": "^0.2.13",
+    "lodash.chunk": "^4.2.0"
   },
   "exports": {
     ".": {

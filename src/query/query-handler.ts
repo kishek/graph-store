@@ -1,4 +1,5 @@
 import { Result } from '@badrap/result';
+import chunk from 'lodash.chunk';
 
 import {
   isCreateQueryRequest,
@@ -36,12 +37,14 @@ import {
 } from '../storage-errors';
 import { RequestInfo } from '../storage-request';
 
+const MAX_GET_LIMIT = 128;
+
 export class QueryHandler {
   constructor(
     private state: DurableObjectState,
     private indexHandler: IndexHandler,
     private relationshipHandler: RelationshipHandler,
-  ) {}
+  ) { }
 
   async handle<T extends { id?: string }>(info: RequestInfo) {
     switch (info.operation) {
@@ -147,7 +150,18 @@ export class QueryHandler {
     const query = info.body(isBatchReadQueryRequest);
     const keys = query.keys.map((k) => this.keyFromQuery(k, query.index));
 
-    const items = await this.state.storage.get<ReadQueryResponse<T>>(keys);
+    const chunks = keys.length > MAX_GET_LIMIT ? chunk(keys, MAX_GET_LIMIT) : [keys];
+    const items = new Map<string, ReadQueryResponse<T>>();
+
+    await Promise.all(
+      chunks.map(async (chunk) => {
+        const results = await this.state.storage.get<ReadQueryResponse<T>>(chunk);
+        for (const [k, v] of results) {
+          items.set(k, v);
+        }
+      }),
+    );
+
     if (items.size !== keys.length) {
       return Result.err(new StorageNotFoundError());
     }
