@@ -280,7 +280,7 @@ export class StorageClient {
       const end = Date.now();
 
       console.log({
-        tag: opts.tag ?? `${opts.operation}:${opts.type}`,
+        tag: opts.request.tag ?? `${opts.operation}:${opts.type}`,
         duration: end - start,
       })
 
