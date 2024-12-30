@@ -36,7 +36,6 @@
   },
   "dependencies": {
     "@badrap/result": "^0.2.13",
-    "dataloader": "^2.2.3",
     "lodash.chunk": "^4.2.0"
   },
   "exports": {

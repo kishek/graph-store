@@ -30,7 +30,6 @@ import {
   BatchUpdateQueryResponse,
   BatchUpsertQueryRequest,
   BatchUpsertQueryResponse,
-  QueryResponse,
 } from './query/query-request';
 import {
   CreateRelationshipRequest,
@@ -47,7 +46,6 @@ import {
   RemoveRelationshipBatchResponse,
 } from './relationship/relationship-request';
 import { StorageRequest } from './storage-request';
-import DataLoader from 'dataloader';
 
 export class HTTPError extends Error {
   private status: number;
@@ -87,14 +85,25 @@ async function response<T>(promise: Promise<Response>): Promise<Result<T, HTTPEr
   return Result.ok(json);
 }
 
+async function instrument<T>(promise: Promise<T>, tag: string): Promise<T> {
+  const start = Date.now();
+  const result = await promise;
+  const end = Date.now();
+
+  console.log({
+    tag,
+    duration: end - start,
+  })
+
+  return result;
+}
+
 export interface StorageClientMetadata {
   namespace: string;
   instrumented?: boolean
 }
 
 export class StorageClient {
-  private readLoadersByIndex: Record<string, { index: string, loader: DataLoader<string, any> }> = {};
-
   private constructor(
     private api: DurableObjectStub,
     private meta: StorageClientMetadata,
@@ -160,36 +169,20 @@ export class StorageClient {
     });
   }
 
-  public async readQuery<T>(opts: ReadQueryRequest) {
-    const loader = this.getReadLoader(opts);
-
-    try {
-      const result = await loader.load(opts.key) as ReadQueryResponse<T>;
-      return Result.ok(result);
-    } catch (err) {
-      if (err instanceof HTTPError) {
-        return Result.err(err);
-      }
-
-      const error = err instanceof Error ? err : new Error(String(err));
-      return Result.err(HTTPError.from(500, error.message));
-    }
+  public readQuery<T>(opts: ReadQueryRequest) {
+    return this.execute<ReadQueryResponse<T>>({
+      type: 'query',
+      operation: 'read',
+      request: opts,
+    });
   }
 
-  public async batchReadQuery<T>(opts: BatchReadQueryRequest) {
-    const loader = this.getReadLoader(opts);
-
-    try {
-      const result = await loader.loadMany(opts.keys) as BatchReadQueryResponse<T>;
-      return Result.ok(result);
-    } catch (err) {
-      if (err instanceof HTTPError) {
-        return Result.err(err);
-      }
-
-      const error = err instanceof Error ? err : new Error(String(err));
-      return Result.err(HTTPError.from(500, error.message));
-    }
+  public batchReadQuery<T>(opts: BatchReadQueryRequest) {
+    return this.execute<BatchReadQueryResponse<T>>({
+      type: 'query',
+      operation: 'batchRead',
+      request: opts,
+    });
   }
 
   public updateQuery<T>(opts: UpdateQueryRequest<T>) {
@@ -307,38 +300,5 @@ export class StorageClient {
       return Result.err(HTTPError.from(response.status, (json as any).reason));
     }
     return Result.ok(json);
-  }
-
-  private getReadLoader(opts: ReadQueryRequest | BatchReadQueryRequest) {
-    const key = opts.index ?? 'default';
-
-    const loader = this.readLoadersByIndex[key];
-    if (!loader) {
-      this.readLoadersByIndex[key] = {
-        index: opts.index ?? 'no-index',
-        loader: new DataLoader<string, QueryResponse>((keys) => this.doBatchedRead(keys, opts.index)),
-      };
-    }
-
-    return this.readLoadersByIndex[key].loader;
-  }
-
-  private async doBatchedRead(ids: readonly string[], index?: string): Promise<BatchReadQueryResponse<any>> {
-    const payload: BatchReadQueryRequest = {
-      keys: ids as string[],
-      index,
-    };
-
-    const result = await this.execute<BatchReadQueryResponse<any>>({
-      type: 'query',
-      operation: 'batchRead',
-      request: payload,
-    });
-
-    if (result.isErr) {
-      throw result.error;
-    }
-
-    return result.value;
   }
 }
