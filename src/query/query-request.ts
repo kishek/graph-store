@@ -47,10 +47,10 @@ export type BatchUpsertQueryRequest<T> = {
 };
 export type BatchUpsertQueryResponse<T> = QueryResponse<T>[];
 
-export type RemoveQueryRequest = Omit<Pick<QueryRequest, 'key' | 'index'>, 'index'>;
+export type RemoveQueryRequest = Omit<Pick<QueryRequest, 'key' | 'index' | 'tag'>, 'index'>;
 export type RemoveQueryResponse = { success: boolean };
 
-export type ListQueryRequest = Partial<Pick<QueryRequest, 'key' | 'index'>>;
+export type ListQueryRequest = Partial<Pick<QueryRequest, 'key' | 'index' | 'tag'>>;
 export type ListQueryResponse<T> = Record<string, QueryResponse<T>>;
 
 export const isCreateQueryRequest = <T>(body: any): body is CreateQueryRequest<T> => {
