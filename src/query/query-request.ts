@@ -16,7 +16,7 @@ export type BatchCreateQueryRequest<T> = {
 };
 export type BatchCreateQueryResponse<T> = QueryResponse<T>[];
 
-export type ReadQueryRequest = Pick<QueryRequest, 'key' | 'index'>;
+export type ReadQueryRequest = Pick<QueryRequest, 'key' | 'index' | 'tag'>;
 export type ReadQueryResponse<T> = QueryResponse<T>;
 
 export type BatchReadQueryRequest = {
