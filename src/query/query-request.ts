@@ -1,4 +1,5 @@
 export interface QueryRequest<T = Record<string, string | number>> {
+  tag?: string;
   key: string;
   value: T;
   index?: string;
@@ -9,6 +10,7 @@ export type CreateQueryRequest<T> = QueryRequest<T>;
 export type CreateQueryResponse<T> = QueryResponse<T>;
 
 export type BatchCreateQueryRequest<T> = {
+  tag?: string;
   entries: Record<string, T>;
   index?: string;
 };
@@ -18,24 +20,28 @@ export type ReadQueryRequest = Pick<QueryRequest, 'key' | 'index'>;
 export type ReadQueryResponse<T> = QueryResponse<T>;
 
 export type BatchReadQueryRequest = {
+  tag?: string;
   keys: string[];
   index?: string;
 };
 export type BatchReadQueryResponse<T> = QueryResponse<T>[];
 
 export type UpdateQueryRequest<T> = {
+  tag?: string;
   key: string;
   value: Partial<T>;
 };
 export type UpdateQueryResponse<T> = QueryResponse<T>;
 
 export type BatchUpdateQueryRequest<T> = {
+  tag?: string;
   entries: Record<string, Partial<T>>;
   index?: string;
 };
 export type BatchUpdateQueryResponse<T> = QueryResponse<T>[];
 
 export type BatchUpsertQueryRequest<T> = {
+  tag?: string;
   entries: Record<string, T>;
   index?: string;
 };

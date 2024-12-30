@@ -22,11 +22,13 @@ type StorageRequestType = 'query' | 'relationship' | 'index';
 type StorageOperation = ItemOperation | RelationshipOperation;
 
 export type ItemRequest<T = Record<any, any>> = {
+  tag?: string;
   type: 'query' | 'index';
   operation: ItemOperation;
   request: T;
 };
 export type RelationshipRequest<T = Record<any, any>> = {
+  tag?: string;
   type: 'relationship';
   operation: RelationshipOperation;
   request: T;

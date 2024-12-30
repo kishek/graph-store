@@ -1,6 +1,7 @@
 export type RelationshipName = string & { _relationshipRole: symbol };
 
 export type RelationshipRequest = {
+  tag?: string;
   nodeA: string;
   nodeB: string;
   nodeAToBRelationshipName: RelationshipName;
@@ -22,6 +23,7 @@ export type CreateRelationshipBatchRequest = RelationshipRequest[];
 export type CreateRelationshipBatchResponse = { success: boolean };
 
 export type ReadRelationshipRequest = {
+  tag?: string;
   nodeA: string;
   nodeB: string;
   name: RelationshipName;
@@ -30,18 +32,20 @@ export type ReadRelationshipResponse = { exists: boolean };
 
 export type RemoveRelationshipRequest =
   | {
-      nodeA: string;
-      nodeB: string;
-      nodeAToBRelationshipName: RelationshipName;
-      nodeBToARelationshipName: RelationshipName;
-    }
-  | { node: string };
+    tag?: string;
+    nodeA: string;
+    nodeB: string;
+    nodeAToBRelationshipName: RelationshipName;
+    nodeBToARelationshipName: RelationshipName;
+  }
+  | { node: string, tag?: string; };
 export type RemoveRelationshipResponse = { success: boolean };
 
 export type RemoveRelationshipBatchRequest = RelationshipRequest[];
 export type RemoveRelationshipBatchResponse = { success: boolean };
 
 export type ListRelationshipRequest = {
+  tag?: string;
   name: RelationshipName;
   node: string;
   first?: number;

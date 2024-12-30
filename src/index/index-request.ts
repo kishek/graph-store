@@ -2,17 +2,22 @@ export interface Index {
   id: string;
   property: string;
 }
+export interface IndexRequest {
+  id: string;
+  property: string;
+  tag?: string;
+}
 
-export type CreateIndexRequest = Omit<Index, 'id'>;
+export type CreateIndexRequest = Omit<IndexRequest, 'id'>;
 export type CreateIndexResponse = Index;
 
-export type ReadIndexRequest = Pick<Index, 'id'>;
+export type ReadIndexRequest = Pick<IndexRequest, 'id'>;
 export type ReadIndexResponse = Index;
 
-export type UpdateIndexRequest = Index;
+export type UpdateIndexRequest = IndexRequest;
 export type UpdateIndexResponse = Index;
 
-export type RemoveIndexRequest = Pick<Index, 'id'>;
+export type RemoveIndexRequest = Pick<IndexRequest, 'id'>;
 export type RemoveIndexResponse = { success: boolean };
 
 export type ListIndexRequest = void;
