@@ -492,6 +492,7 @@ __metadata:
     "@cloudflare/workers-types": "npm:^4.20241205.0"
     "@types/lodash.chunk": "npm:^4"
     "@types/node": "npm:ts5.7"
+    dataloader: "npm:^2.2.3"
     lodash.chunk: "npm:^4.2.0"
     typescript: "npm:^5.7.2"
     vitest: "npm:2.1.8"
@@ -1027,6 +1028,13 @@ __metadata:
   version: 2.0.2
   resolution: "data-uri-to-buffer@npm:2.0.2"
   checksum: 10/152bec5e77513ee253a7c686700a1723246f582dad8b614e8eaaaba7fa45a15c8671ae4b8f4843f4f3a002dae1d3e7a20f852f7d7bdc8b4c15cfe7adfdfb07f8
+  languageName: node
+  linkType: hard
+
+"dataloader@npm:^2.2.3":
+  version: 2.2.3
+  resolution: "dataloader@npm:2.2.3"
+  checksum: 10/83fe6259abe00ae64c5f48252ef59d8e5fcabda9fd4d26685f14a76eeca596bf6f9500d9f22a0094c50c3ea782a0977728f9367e232dfa0fdb5c9d646de279b2
   languageName: node
   linkType: hard
 
