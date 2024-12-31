@@ -1108,3 +1108,21 @@ test('is able to list last N relationships before a node', async () => {
     hasAfter: true,
   });
 });
+
+test('is able to purge all data', async () => {
+  const client = getStorageClient();
+
+  await client.createQuery<TestEntity>({
+    key: 'entity-a',
+    value: {
+      a: 1,
+      b: 2,
+      c: 3,
+    },
+  });
+
+  await client.purgeAllQuery();
+
+  const items = await client.listQuery<TestEntity>({ key: 'entity' });
+  expect(items.unwrap()).toMatchObject({});
+});

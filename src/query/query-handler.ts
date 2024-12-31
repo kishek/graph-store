@@ -75,6 +75,9 @@ export class QueryHandler {
       case 'list': {
         return await this.listQuery<T>(info);
       }
+      case 'purge': {
+        return await this.purgeAllQuery();
+      }
       default: {
         return Result.err(new StorageUnknownOperationError());
       }
@@ -244,6 +247,11 @@ export class QueryHandler {
     items.forEach((value) => response.set(value.id, value));
 
     return Result.ok(Object.fromEntries(response));
+  }
+
+  private async purgeAllQuery(): Promise<Result<boolean, StorageError>> {
+    await this.state.storage.deleteAll();
+    return Result.ok(true);
   }
 
   private async doBatchUpdate<T>(

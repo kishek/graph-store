@@ -9,7 +9,8 @@ type ItemOperation =
   | 'batchRead'
   | 'batchUpdate'
   | 'batchUpsert'
-  | 'batchCreate';
+  | 'batchCreate'
+  | 'purge';
 type RelationshipOperation =
   | 'create'
   | 'read'

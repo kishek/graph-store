@@ -273,6 +273,18 @@ export class StorageClient {
     });
   }
 
+  /**
+   * Deletes all purged items entirely from the store.
+   * @returns The number of items purged
+   */
+  public purgeAllQuery() {
+    return this.execute<boolean>({
+      type: 'query',
+      operation: 'purge',
+      request: {},
+    });
+  }
+
   private async execute<T>(opts: StorageRequest<any>): Promise<Result<T, HTTPError>> {
     if (this.meta.instrumented) {
       const start = Date.now();
