@@ -379,6 +379,7 @@ test('batch upserts entities in database', async () => {
   });
 
   const items = await client.listQuery<TestEntity>({ key: 'entity' });
+  console.log(items.unwrap());
   expect(items.unwrap()).toMatchObject({
     'entity-a': {
       a: 101,

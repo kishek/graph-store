@@ -131,9 +131,7 @@ export class QueryHandler {
       }
     }
 
-    await this.state.storage.transaction(async (transaction) => {
-      await transaction.put(entries);
-    });
+    await this.doChunkedWrite<T>(entries);
 
     return Result.ok(Object.values(entriesFromInputKeys));
   }
@@ -156,22 +154,12 @@ export class QueryHandler {
     info: RequestInfo,
   ): Promise<Result<BatchReadQueryResponse<T>, StorageError>> {
     const query = info.body(isBatchReadQueryRequest);
-    const keys = query.keys.map((k) => this.keyFromQuery(k, query.index));
 
-    const chunks =
-      keys.length > MAX_ITEM_SIZE_LIMIT ? chunk(keys, MAX_ITEM_SIZE_LIMIT) : [keys];
-    const items = new Map<string, ReadQueryResponse<T>>();
+    const inputKeys = query.keys;
+    const keys = inputKeys.map((k) => this.keyFromQuery(k, query.index));
 
-    await Promise.all(
-      chunks.map(async (chunk) => {
-        const results = await this.state.storage.get<ReadQueryResponse<T>>(chunk);
-        for (const [k, v] of results) {
-          items.set(k, v);
-        }
-      }),
-    );
-
-    if (items.size !== keys.length) {
+    const items = await this.doChunkedRead<T>(keys);
+    if (items.size !== inputKeys.length) {
       return Result.err(new StorageNotFoundError());
     }
 
@@ -297,7 +285,8 @@ export class QueryHandler {
   ): Promise<Result<BatchUpsertQueryResponse<T>, StorageError>> {
     const keys = Object.keys(input);
 
-    const items = await this.state.storage.get<ReadQueryResponse<T>>(keys);
+    const items = await this.doChunkedRead(keys);
+
     if (throwOnMissingKey && items.size !== keys.length) {
       return Result.err(new StorageNotFoundError());
     }
@@ -323,18 +312,40 @@ export class QueryHandler {
       entriesFromInputKeys[key] = nextValue;
     }
 
+    await this.doChunkedWrite<T>(entries);
+    await this.doChunkedDelete<T>(dangling);
+
+    return Result.ok(this.recordToOrderedArray(keys, entries));
+  }
+
+  private async doChunkedRead<T>(keys: string[]) {
+    const chunks =
+      keys.length > MAX_ITEM_SIZE_LIMIT ? chunk(keys, MAX_ITEM_SIZE_LIMIT) : [keys];
+    const items = new Map<string, ReadQueryResponse<T>>();
+
+    await Promise.all(
+      chunks.map(async (chunk) => {
+        const results = await this.state.storage.get<ReadQueryResponse<T>>(chunk);
+        for (const [k, v] of results) {
+          items.set(k, v);
+        }
+      }),
+    );
+
+    return items;
+  }
+
+  private async doChunkedWrite<T>(entries: Record<string, T & { id: string }>) {
     const keysToUpdate = Object.keys(entries);
-    const keysToDelete = Array.from(dangling);
+
+    if (keysToUpdate.length === 0) {
+      return;
+    }
 
     const updateChunks =
       keysToUpdate.length > MAX_ITEM_SIZE_LIMIT
         ? chunk(keysToUpdate, MAX_ITEM_SIZE_LIMIT)
         : [keysToUpdate];
-
-    const deleteChunks =
-      keysToDelete.length > MAX_ITEM_SIZE_LIMIT
-        ? chunk(keysToDelete, MAX_ITEM_SIZE_LIMIT)
-        : [keysToDelete];
 
     await Promise.all(
       updateChunks.map(async (chunk) => {
@@ -342,9 +353,21 @@ export class QueryHandler {
         await this.state.storage.put(updates);
       }),
     );
-    await Promise.all(deleteChunks.map((chunk) => this.state.storage.delete(chunk)));
+  }
 
-    return Result.ok(this.recordToOrderedArray(keys, entries));
+  private async doChunkedDelete<T>(dangling: Set<string>) {
+    const keysToDelete = Array.from(dangling);
+
+    if (keysToDelete.length === 0) {
+      return;
+    }
+
+    const deleteChunks =
+      keysToDelete.length > MAX_ITEM_SIZE_LIMIT
+        ? chunk(keysToDelete, MAX_ITEM_SIZE_LIMIT)
+        : [keysToDelete];
+
+    await Promise.all(deleteChunks.map((chunk) => this.state.storage.delete(chunk)));
   }
 
   private keyFromQuery(key: string | undefined, index: string | undefined) {
