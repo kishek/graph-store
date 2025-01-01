@@ -222,7 +222,7 @@ export class StorageClient {
   public batchRemoveQuery(opts: BatchRemoveQueryRequest) {
     return this.execute<BatchRemoveQueryResponse>({
       type: 'query',
-      operation: 'remove',
+      operation: 'batchRemove',
       request: opts,
     });
   }

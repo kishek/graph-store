@@ -246,7 +246,7 @@ export class QueryHandler {
   ): Promise<Result<BatchRemoveQueryResponse, StorageError>> {
     const { keys: inputKeys } = info.body(isBatchRemoveQueryRequest);
 
-    const keys: string[] = [];
+    const keys: string[] = [...inputKeys];
     for (const inputKey of inputKeys) {
       this.indexHandler.enhanceDeletePayload(inputKey, keys);
     }

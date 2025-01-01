@@ -10,6 +10,7 @@ type ItemOperation =
   | 'batchUpdate'
   | 'batchUpsert'
   | 'batchCreate'
+  | 'batchRemove'
   | 'purge';
 type RelationshipOperation =
   | 'create'

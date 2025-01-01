@@ -471,7 +471,7 @@ test('removes batch of entities in database', async () => {
   await client.batchRemoveQuery({ keys: entities.map((e) => e.id) });
 
   const items = await client.listQuery<TestEntity>({ key: 'entity' });
-  expect(items.unwrap()).toMatchObject({});
+  expect(Object.keys(items.unwrap())).toHaveLength(0);
 });
 
 test('creating entity in database creates entry in storage index', async () => {
