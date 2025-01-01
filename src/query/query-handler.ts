@@ -46,7 +46,7 @@ export class QueryHandler {
     private state: DurableObjectState,
     private indexHandler: IndexHandler,
     private relationshipHandler: RelationshipHandler,
-  ) { }
+  ) {}
 
   async handle<T extends { id?: string }>(info: RequestInfo) {
     switch (info.operation) {
@@ -158,7 +158,8 @@ export class QueryHandler {
     const query = info.body(isBatchReadQueryRequest);
     const keys = query.keys.map((k) => this.keyFromQuery(k, query.index));
 
-    const chunks = keys.length > MAX_ITEM_SIZE_LIMIT ? chunk(keys, MAX_ITEM_SIZE_LIMIT) : [keys];
+    const chunks =
+      keys.length > MAX_ITEM_SIZE_LIMIT ? chunk(keys, MAX_ITEM_SIZE_LIMIT) : [keys];
     const items = new Map<string, ReadQueryResponse<T>>();
 
     await Promise.all(
@@ -251,7 +252,8 @@ export class QueryHandler {
       this.indexHandler.enhanceDeletePayload(inputKey, keys);
     }
 
-    const chunks = keys.length > MAX_ITEM_SIZE_LIMIT ? chunk(keys, MAX_ITEM_SIZE_LIMIT) : [keys];
+    const chunks =
+      keys.length > MAX_ITEM_SIZE_LIMIT ? chunk(keys, MAX_ITEM_SIZE_LIMIT) : [keys];
     await Promise.all(
       chunks.map(async (chunk) => {
         const deleted = await this.state.storage.delete(chunk);
@@ -321,10 +323,26 @@ export class QueryHandler {
       entriesFromInputKeys[key] = nextValue;
     }
 
-    await this.state.storage.transaction(async (transaction) => {
-      await transaction.put(entries);
-      await transaction.delete(Array.from(dangling));
-    });
+    const keysToUpdate = Object.keys(entries);
+    const keysToDelete = Array.from(dangling);
+
+    const updateChunks =
+      keysToUpdate.length > MAX_ITEM_SIZE_LIMIT
+        ? chunk(keysToUpdate, MAX_ITEM_SIZE_LIMIT)
+        : [keysToUpdate];
+
+    const deleteChunks =
+      keysToDelete.length > MAX_ITEM_SIZE_LIMIT
+        ? chunk(keysToDelete, MAX_ITEM_SIZE_LIMIT)
+        : [keysToDelete];
+
+    await Promise.all(
+      updateChunks.map(async (chunk) => {
+        const updates = Object.fromEntries(chunk.map((key) => [key, entries[key]]));
+        await this.state.storage.put(updates);
+      }),
+    );
+    await Promise.all(deleteChunks.map((chunk) => this.state.storage.delete(chunk)));
 
     return Result.ok(this.recordToOrderedArray(keys, entries));
   }
