@@ -169,7 +169,7 @@ export class QueryHandler {
       return Result.err(new StorageNotFoundError());
     }
 
-    return Result.ok(Array.from(items.values()));
+    return Result.ok(this.mapToOrderedArray(keys, items));
   }
 
   private async updateQuery<T>(
@@ -291,7 +291,7 @@ export class QueryHandler {
       await transaction.delete(Array.from(dangling));
     });
 
-    return Result.ok(Object.values(entriesFromInputKeys));
+    return Result.ok(this.recordToOrderedArray(keys, entries));
   }
 
   private keyFromQuery(key: string | undefined, index: string | undefined) {
@@ -302,5 +302,13 @@ export class QueryHandler {
       return index;
     }
     return `${index}--${key}`;
+  }
+
+  private mapToOrderedArray<T>(keys: string[], map: Map<string, T>) {
+    return keys.map((key) => map.get(key) as T);
+  }
+
+  private recordToOrderedArray<T>(keys: string[], map: Record<string, T>) {
+    return keys.map((key) => map[key] as T);
   }
 }
