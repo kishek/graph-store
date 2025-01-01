@@ -30,6 +30,8 @@ import {
   BatchUpdateQueryResponse,
   BatchUpsertQueryRequest,
   BatchUpsertQueryResponse,
+  BatchRemoveQueryRequest,
+  BatchRemoveQueryResponse,
 } from './query/query-request';
 import {
   CreateRelationshipRequest,
@@ -211,6 +213,14 @@ export class StorageClient {
 
   public removeQuery(opts: RemoveQueryRequest) {
     return this.execute<RemoveQueryResponse>({
+      type: 'query',
+      operation: 'remove',
+      request: opts,
+    });
+  }
+
+  public batchRemoveQuery(opts: BatchRemoveQueryRequest) {
+    return this.execute<BatchRemoveQueryResponse>({
       type: 'query',
       operation: 'remove',
       request: opts,

@@ -450,6 +450,30 @@ test('removes entity in database', async () => {
   expect(items.unwrap()).toMatchObject({});
 });
 
+test('removes batch of entities in database', async () => {
+  const client = getStorageClient();
+  const result = await client.batchCreateQuery<TestEntity>({
+    entries: {
+      'entity-a': {
+        a: 1,
+        b: 2,
+        c: 3,
+      },
+      'entity-b': {
+        a: 4,
+        b: 5,
+        c: 6,
+      },
+    },
+  });
+  const entities = result.unwrap();
+
+  await client.batchRemoveQuery({ keys: entities.map((e) => e.id) });
+
+  const items = await client.listQuery<TestEntity>({ key: 'entity' });
+  expect(items.unwrap()).toMatchObject({});
+});
+
 test('creating entity in database creates entry in storage index', async () => {
   const client = getStorageClient();
 

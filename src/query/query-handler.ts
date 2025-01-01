@@ -26,6 +26,8 @@ import {
   BatchUpsertQueryResponse,
   BatchUpsertQueryRequest,
   isBatchUpsertQueryRequest,
+  BatchRemoveQueryResponse,
+  isBatchRemoveQueryRequest,
 } from './query-request';
 import { IndexHandler } from '../index/index-handler';
 import { RelationshipHandler } from '../relationship/relationship-handler';
@@ -71,6 +73,9 @@ export class QueryHandler {
       }
       case 'remove': {
         return await this.removeQuery(info);
+      }
+      case 'batchRemove': {
+        return await this.batchRemoveQuery(info);
       }
       case 'list': {
         return await this.listQuery<T>(info);
@@ -231,6 +236,31 @@ export class QueryHandler {
       type: 'relationship',
       operation: 'remove',
       body: <T>() => ({ node: key } as T),
+    });
+
+    return Result.ok({ success: true });
+  }
+
+  private async batchRemoveQuery(
+    info: RequestInfo,
+  ): Promise<Result<BatchRemoveQueryResponse, StorageError>> {
+    const { keys: inputKeys } = info.body(isBatchRemoveQueryRequest);
+
+    const keys: string[] = [];
+    for (const inputKey of inputKeys) {
+      this.indexHandler.enhanceDeletePayload(inputKey, keys);
+    }
+
+    const deleted = await this.state.storage.delete(keys);
+    if (deleted === 0) {
+      return Result.err(new StorageDeleteFailedError());
+    }
+
+    // When deleting an entity, delete all relationships too.
+    await this.relationshipHandler.handle({
+      type: 'relationship',
+      operation: 'batchRemove',
+      body: <T>() => (keys.map((key) => ({ node: key }))) as T,
     });
 
     return Result.ok({ success: true });

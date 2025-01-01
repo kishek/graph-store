@@ -50,6 +50,12 @@ export type BatchUpsertQueryResponse<T> = QueryResponse<T>[];
 export type RemoveQueryRequest = Omit<Pick<QueryRequest, 'key' | 'index' | 'tag'>, 'index'>;
 export type RemoveQueryResponse = { success: boolean };
 
+export type BatchRemoveQueryRequest = {
+  tag?: string;
+  keys: string[];
+};
+export type BatchRemoveQueryResponse = { success: boolean };
+
 export type ListQueryRequest = Partial<Pick<QueryRequest, 'key' | 'index' | 'tag'>>;
 export type ListQueryResponse<T> = Record<string, QueryResponse<T>>;
 
@@ -82,6 +88,9 @@ export const isBatchReadQueryRequest = (body: any): body is BatchReadQueryReques
 };
 export const isRemoveQueryRequest = (body: any): body is RemoveQueryRequest => {
   return body && typeof body.key === 'string';
+};
+export const isBatchRemoveQueryRequest = (body: any): body is BatchRemoveQueryRequest => {
+  return body && Array.isArray(body.keys);
 };
 export const isListQueryRequest = (body: any): body is ListQueryRequest => {
   return !!body;
