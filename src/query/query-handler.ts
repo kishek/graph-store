@@ -39,7 +39,7 @@ import {
 } from '../storage-errors';
 import { RequestInfo } from '../storage-request';
 
-const MAX_GET_LIMIT = 128;
+const MAX_ITEM_SIZE_LIMIT = 128;
 
 export class QueryHandler {
   constructor(
@@ -158,7 +158,7 @@ export class QueryHandler {
     const query = info.body(isBatchReadQueryRequest);
     const keys = query.keys.map((k) => this.keyFromQuery(k, query.index));
 
-    const chunks = keys.length > MAX_GET_LIMIT ? chunk(keys, MAX_GET_LIMIT) : [keys];
+    const chunks = keys.length > MAX_ITEM_SIZE_LIMIT ? chunk(keys, MAX_ITEM_SIZE_LIMIT) : [keys];
     const items = new Map<string, ReadQueryResponse<T>>();
 
     await Promise.all(
@@ -251,16 +251,21 @@ export class QueryHandler {
       this.indexHandler.enhanceDeletePayload(inputKey, keys);
     }
 
-    const deleted = await this.state.storage.delete(keys);
-    if (deleted === 0) {
-      return Result.err(new StorageDeleteFailedError());
-    }
+    const chunks = keys.length > MAX_ITEM_SIZE_LIMIT ? chunk(keys, MAX_ITEM_SIZE_LIMIT) : [keys];
+    await Promise.all(
+      chunks.map(async (chunk) => {
+        const deleted = await this.state.storage.delete(chunk);
+        if (deleted === 0) {
+          return Result.err(new StorageDeleteFailedError());
+        }
+      }),
+    );
 
     // When deleting an entity, delete all relationships too.
     await this.relationshipHandler.handle({
       type: 'relationship',
       operation: 'batchRemove',
-      body: <T>() => (keys.map((key) => ({ node: key }))) as T,
+      body: <T>() => keys.map((key) => ({ node: key })) as T,
     });
 
     return Result.ok({ success: true });
