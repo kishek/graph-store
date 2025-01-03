@@ -48,6 +48,7 @@ import {
   RemoveRelationshipBatchResponse,
 } from './relationship/relationship-request';
 import { StorageRequest } from './storage-request';
+import { retry } from './retry';
 
 export class HTTPError extends Error {
   private status: number;
@@ -77,39 +78,16 @@ function request(opts: StorageRequest<any>): HTTPRequest {
   };
 }
 
-async function response<T>(promise: Promise<Response>): Promise<Result<T, HTTPError>> {
-  const response = await promise;
-  const json = (await response.json()) as T;
-
-  if (!response.ok) {
-    return Result.err(HTTPError.from(response.status, (json as any).reason));
-  }
-  return Result.ok(json);
-}
-
-async function instrument<T>(promise: Promise<T>, tag: string): Promise<T> {
-  const start = Date.now();
-  const result = await promise;
-  const end = Date.now();
-
-  console.log({
-    tag,
-    duration: end - start,
-  })
-
-  return result;
-}
-
 export interface StorageClientMetadata {
   namespace: string;
-  instrumented?: boolean
+  instrumented?: boolean;
 }
 
 export class StorageClient {
   private constructor(
     private api: DurableObjectStub,
     private meta: StorageClientMetadata,
-  ) { }
+  ) {}
 
   public static from(api: DurableObjectStub, meta: StorageClientMetadata) {
     return new StorageClient(api, meta);
@@ -304,7 +282,7 @@ export class StorageClient {
       console.log({
         tag: opts.request.tag ?? `${opts.operation}:${opts.type}`,
         duration: end - start,
-      })
+      });
 
       return result;
     }
@@ -312,15 +290,31 @@ export class StorageClient {
   }
 
   private async doOperation<T>(opts: StorageRequest<any>): Promise<Result<T, HTTPError>> {
-    const response = await this.api.fetch(
-      'https://durable-object.com/',
-      request(opts),
-    );
-    const json = (await response.json()) as T;
+    const response = await retry('storage', () => this.doNetworkOperation<T>(opts), {
+      maxRetries: 3,
+      delay: 100,
+      factor: 2,
+      shouldRetryOnSuccess: (response) => {
+        return response.status ? response.status >= 500 : false;
+      },
+    });
 
     if (!response.ok) {
-      return Result.err(HTTPError.from(response.status, (json as any).reason));
+      try {
+        const json = await response.json();
+        return Result.err(HTTPError.from(response.status, (json as any).reason));
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        return Result.err(HTTPError.from(response.status, error.message));
+      }
     }
+
+    const json = (await response.json()) as T;
     return Result.ok(json);
+  }
+
+  private async doNetworkOperation<T>(opts: StorageRequest<any>) {
+    const response = await this.api.fetch('https://durable-object.com/', request(opts));
+    return response;
   }
 }
