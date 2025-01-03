@@ -5,6 +5,9 @@ export default defineWorkersConfig({
     poolOptions: {
       workers: {
         wrangler: { configPath: './example/wrangler.toml' },
+        miniflare: {
+          r2Buckets: ['GRAPH_STORAGE_BACKUP'],
+        },
       },
     },
   },

@@ -1,15 +1,13 @@
 import { expect, test } from 'vitest';
 import { env } from 'cloudflare:test';
 
-import { RelationshipName } from './storage';
+import { RelationshipName, StorageEnvironment } from './storage';
 import { StorageClient } from './storage-client';
 
 import '../example';
 
 declare module 'cloudflare:test' {
-  interface ProvidedEnv {
-    GRAPH_STORAGE: DurableObjectNamespace;
-  }
+  interface ProvidedEnv extends StorageEnvironment {}
 }
 
 function getStorageClient() {
@@ -1150,4 +1148,27 @@ test('is able to purge all data', async () => {
 
   const items = await client.listQuery<TestEntity>({ key: 'entity' });
   expect(items.unwrap()).toMatchObject({});
+});
+
+test('is able to backup all data', async () => {
+  const client = getStorageClient();
+
+  await client.createQuery<TestEntity>({
+    key: 'entity-a',
+    value: {
+      a: 1,
+      b: 2,
+      c: 3,
+    },
+  });
+
+  const result = await client.backup();
+  if (!result.isOk) {
+    throw result.error;
+  }
+
+  const backup = await env.GRAPH_STORAGE_BACKUP.list();
+
+  expect(backup.objects).toHaveLength(1);
+  expect(backup.objects[0].size).toBeGreaterThan(32);
 });

@@ -10,17 +10,16 @@ import {
 import { StorageClient, StorageClientMetadata } from './storage-client';
 import { StorageError } from './storage-errors';
 import { parseRequest } from './storage-request';
-
-export interface StorageEnvironment {
-  GRAPH_STORAGE: DurableObjectNamespace;
-}
+import { StorageEnvironment } from './storage-environment';
+import { StoreHandler } from './store/store-handler';
 
 export class Storage {
   private queryHandler: QueryHandler;
   private indexHandler: IndexHandler;
   private relationshipHandler: RelationshipHandler;
+  private storeHandler: StoreHandler;
 
-  constructor(state: DurableObjectState) {
+  constructor(state: DurableObjectState, env: StorageEnvironment) {
     this.relationshipHandler = new RelationshipHandler(state);
     this.indexHandler = new IndexHandler(state);
     this.queryHandler = new QueryHandler(
@@ -28,6 +27,7 @@ export class Storage {
       this.indexHandler,
       this.relationshipHandler,
     );
+    this.storeHandler = new StoreHandler(state, env);
   }
 
   async fetch(request: Request) {
@@ -46,6 +46,10 @@ export class Storage {
         }
         case 'relationship': {
           result = await this.relationshipHandler.handle(info);
+          break;
+        }
+        case 'store': {
+          result = await this.storeHandler.handle(info);
           break;
         }
       }
@@ -111,3 +115,4 @@ export const getStorageClient = (context: {
 
 export type { RelationshipName, RelationshipRequest };
 export { StorageClient } from './storage-client';
+export type { StorageEnvironment } from './storage-environment';

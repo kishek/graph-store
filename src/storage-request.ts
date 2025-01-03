@@ -19,9 +19,10 @@ type RelationshipOperation =
   | 'list'
   | 'batchCreate'
   | 'batchRemove';
+type StoreOperation = 'backup' | 'restore';
 
-type StorageRequestType = 'query' | 'relationship' | 'index';
-type StorageOperation = ItemOperation | RelationshipOperation;
+type StorageRequestType = 'query' | 'relationship' | 'index' | 'store';
+type StorageOperation = ItemOperation | RelationshipOperation | StoreOperation;
 
 export type ItemRequest<T = Record<any, any>> = {
   tag?: string;
@@ -35,9 +36,16 @@ export type RelationshipRequest<T = Record<any, any>> = {
   operation: RelationshipOperation;
   request: T;
 };
+export type OperationalRequest<T> = {
+  type: 'store';
+  operation: 'backup';
+  request: T;
+};
+
 export type StorageRequest<T = Record<any, any>> =
   | ItemRequest<T>
-  | RelationshipRequest<T>;
+  | RelationshipRequest<T>
+  | OperationalRequest<T>;
 
 export interface RequestInfo {
   type: StorageRequestType;

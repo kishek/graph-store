@@ -273,6 +273,18 @@ export class StorageClient {
     });
   }
 
+  /**
+   * Backs up the entire store to a durable object backup.
+   * @returns The backup ID
+   */
+  public backup() {
+    return this.execute<string>({
+      type: 'store',
+      operation: 'backup',
+      request: {},
+    });
+  }
+
   private async execute<T>(opts: StorageRequest<any>): Promise<Result<T, HTTPError>> {
     if (this.meta.instrumented) {
       const start = Date.now();
