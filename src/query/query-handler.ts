@@ -1,5 +1,4 @@
 import { Result } from '@badrap/result';
-import chunk from 'lodash.chunk';
 
 import {
   isCreateQueryRequest,
@@ -38,14 +37,14 @@ import {
   StorageUnknownOperationError,
 } from '../storage-errors';
 import { RequestInfo } from '../storage-request';
-
-const ITEM_LIMIT = 128;
+import { BatchedStorage } from '../batched-storage';
 
 export class QueryHandler {
   constructor(
     private state: DurableObjectState,
     private indexHandler: IndexHandler,
     private relationshipHandler: RelationshipHandler,
+    private batcher = new BatchedStorage(state),
   ) {}
 
   async handle<T extends { id?: string }>(info: RequestInfo) {
@@ -131,7 +130,7 @@ export class QueryHandler {
       }
     }
 
-    await this.doChunkedWrite<T>(entries);
+    await this.batcher.doChunkedWrite<T>(entries);
 
     return Result.ok(Object.values(entriesFromInputKeys));
   }
@@ -158,7 +157,7 @@ export class QueryHandler {
     const inputKeys = query.keys;
     const keys = inputKeys.map((k) => this.keyFromQuery(k, query.index));
 
-    const items = await this.doChunkedRead<T>(keys);
+    const items = await this.batcher.doChunkedRead<ReadQueryResponse<T>>(keys);
     if (items.size !== inputKeys.length) {
       return Result.err(new StorageNotFoundError());
     }
@@ -240,7 +239,7 @@ export class QueryHandler {
       this.indexHandler.enhanceDeletePayload(inputKey, keys);
     }
 
-    await this.doChunkedDelete(new Set(keys));
+    await this.batcher.doChunkedDelete(new Set(keys));
 
     // When deleting an entity, delete all relationships too.
     await this.relationshipHandler.handle({
@@ -276,7 +275,7 @@ export class QueryHandler {
   ): Promise<Result<BatchUpsertQueryResponse<T>, StorageError>> {
     const keys = Object.keys(input);
 
-    const items = await this.doChunkedRead(keys);
+    const items = await this.batcher.doChunkedRead(keys);
 
     if (throwOnMissingKey && items.size !== keys.length) {
       return Result.err(new StorageNotFoundError());
@@ -303,57 +302,10 @@ export class QueryHandler {
       entriesFromInputKeys[key] = nextValue;
     }
 
-    await this.doChunkedWrite<T>(entries);
-    await this.doChunkedDelete<T>(dangling);
+    await this.batcher.doChunkedWrite<T>(entries);
+    await this.batcher.doChunkedDelete(dangling);
 
     return Result.ok(this.recordToOrderedArray(keys, entries));
-  }
-
-  private async doChunkedRead<T>(keys: string[]) {
-    const chunks = keys.length > ITEM_LIMIT ? chunk(keys, ITEM_LIMIT) : [keys];
-    const items = new Map<string, ReadQueryResponse<T>>();
-
-    await Promise.all(
-      chunks.map(async (chunk) => {
-        const results = await this.state.storage.get<ReadQueryResponse<T>>(chunk);
-        for (const [k, v] of results) {
-          items.set(k, v);
-        }
-      }),
-    );
-
-    return items;
-  }
-
-  private async doChunkedWrite<T>(entries: Record<string, T & { id: string }>) {
-    const keysToUpdate = Object.keys(entries);
-
-    if (keysToUpdate.length === 0) {
-      return;
-    }
-
-    const updateChunks =
-      keysToUpdate.length > ITEM_LIMIT ? chunk(keysToUpdate, ITEM_LIMIT) : [keysToUpdate];
-
-    await Promise.all(
-      updateChunks.map(async (chunk) => {
-        const updates = Object.fromEntries(chunk.map((key) => [key, entries[key]]));
-        await this.state.storage.put(updates);
-      }),
-    );
-  }
-
-  private async doChunkedDelete<T>(dangling: Set<string>) {
-    const keysToDelete = Array.from(dangling);
-
-    if (keysToDelete.length === 0) {
-      return;
-    }
-
-    const deleteChunks =
-      keysToDelete.length > ITEM_LIMIT ? chunk(keysToDelete, ITEM_LIMIT) : [keysToDelete];
-
-    await Promise.all(deleteChunks.map((chunk) => this.state.storage.delete(chunk)));
   }
 
   private keyFromQuery(key: string | undefined, index: string | undefined) {

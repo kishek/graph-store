@@ -30,6 +30,7 @@ import {
   StorageUnknownOperationError,
 } from '../storage-errors';
 import { RequestInfo } from '../storage-request';
+import { BatchedStorage } from '../batched-storage';
 
 export const hierarchicalRole = {
   parent: 'parent' as RelationshipName,
@@ -53,7 +54,10 @@ const mappingId = (relationshipName: RelationshipName) => {
 };
 
 export class RelationshipHandler {
-  constructor(private state: DurableObjectState) {}
+  constructor(
+    private state: DurableObjectState,
+    private batcher = new BatchedStorage(state),
+  ) {}
 
   async handle(info: RequestInfo) {
     switch (info.operation) {
@@ -110,10 +114,8 @@ export class RelationshipHandler {
 
     const { relationsRight, relationsLeft } = this.parseBatchRequest(input);
 
-    await this.state.storage.transaction(async (transaction) => {
-      await this.addRelationshipBatch(transaction, relationsRight);
-      await this.addRelationshipBatch(transaction, relationsLeft);
-    });
+    await this.addRelationshipBatch(relationsRight);
+    await this.addRelationshipBatch(relationsLeft);
 
     return Result.ok({ success: true });
   }
@@ -129,11 +131,8 @@ export class RelationshipHandler {
     await transaction.put<RelationshipData>(id, relations);
   }
 
-  private async addRelationshipBatch(
-    transaction: DurableObjectTransaction,
-    relations: RelationshipTuple[],
-  ) {
-    const existing = await transaction.get<RelationshipData>(
+  private async addRelationshipBatch(relations: RelationshipTuple[]) {
+    const existing = await this.batcher.doChunkedRead<RelationshipData>(
       relations.map(([relationRoot]) => relationRoot),
     );
 
@@ -146,7 +145,7 @@ export class RelationshipHandler {
       update[source] = allRelations;
     }
 
-    await transaction.put(update);
+    await this.batcher.doChunkedWrite(update);
   }
 
   private async addRelationshipNameMapping(
@@ -171,11 +170,8 @@ export class RelationshipHandler {
     await transaction.put<RelationshipData>(id, relations);
   }
 
-  private async deleteRelationshipBatch(
-    transaction: DurableObjectTransaction,
-    relations: RelationshipTuple[],
-  ) {
-    const existing = await transaction.get<RelationshipData>(
+  private async deleteRelationshipBatch(relations: RelationshipTuple[]) {
+    const existing = await this.batcher.doChunkedRead<RelationshipData>(
       relations.map(([relationRoot]) => relationRoot),
     );
 
@@ -188,7 +184,7 @@ export class RelationshipHandler {
       update[source] = allRelations;
     }
 
-    await transaction.put(update);
+    await this.batcher.doChunkedWrite(update);
   }
 
   private async hasRelationship(
@@ -268,7 +264,7 @@ export class RelationshipHandler {
       // - Update all relations which go from a <- b
       await Promise.all([
         transaction.delete(relationsRightIds),
-        this.deleteRelationshipBatch(transaction, relationsLeftIds),
+        this.deleteRelationshipBatch(relationsLeftIds),
       ]);
     });
   }
@@ -280,13 +276,8 @@ export class RelationshipHandler {
 
     const { relationsRight, relationsLeft } = this.parseBatchRequest(input);
 
-    await this.state.storage.transaction(async (transaction) => {
-      await this.deleteRelationshipBatch(transaction, relationsRight);
-    });
-
-    await this.state.storage.transaction(async (transaction) => {
-      await this.deleteRelationshipBatch(transaction, relationsLeft);
-    });
+    await this.deleteRelationshipBatch(relationsRight);
+    await this.deleteRelationshipBatch(relationsLeft);
 
     return Result.ok({ success: true });
   }
