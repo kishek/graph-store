@@ -157,10 +157,9 @@ export class QueryHandler {
     const inputKeys = query.keys;
     const keys = inputKeys.map((k) => this.keyFromQuery(k, query.index));
 
-    const items = await this.batcher.doChunkedRead<ReadQueryResponse<T>>(keys);
-    if (items.size !== inputKeys.length) {
-      return Result.err(new StorageNotFoundError());
-    }
+    const items = await this.batcher.doChunkedRead<ReadQueryResponse<T> | undefined>(
+      keys,
+    );
 
     return Result.ok(this.mapToOrderedArray(keys, items));
   }

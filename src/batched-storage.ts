@@ -5,9 +5,9 @@ const ITEM_LIMIT = 128;
 export class BatchedStorage {
   public constructor(private state: DurableObjectState) {}
 
-  async doChunkedRead<T>(keys: string[]) {
+  async doChunkedRead<T>(keys: string[]): Promise<Map<string, T | undefined>> {
     const chunks = keys.length > ITEM_LIMIT ? chunk(keys, ITEM_LIMIT) : [keys];
-    const items = new Map<string, T>();
+    const items = new Map<string, T | undefined>();
 
     await Promise.all(
       chunks.map(async (chunk) => {
@@ -17,6 +17,12 @@ export class BatchedStorage {
         }
       }),
     );
+
+    for (const key of keys) {
+      if (!items.has(key)) {
+        items.set(key, undefined);
+      }
+    }
 
     return items;
   }

@@ -24,7 +24,7 @@ export type BatchReadQueryRequest = {
   keys: string[];
   index?: string;
 };
-export type BatchReadQueryResponse<T> = QueryResponse<T>[];
+export type BatchReadQueryResponse<T> = (QueryResponse<T> | undefined)[];
 
 export type UpdateQueryRequest<T> = {
   tag?: string;
@@ -47,7 +47,10 @@ export type BatchUpsertQueryRequest<T> = {
 };
 export type BatchUpsertQueryResponse<T> = QueryResponse<T>[];
 
-export type RemoveQueryRequest = Omit<Pick<QueryRequest, 'key' | 'index' | 'tag'>, 'index'>;
+export type RemoveQueryRequest = Omit<
+  Pick<QueryRequest, 'key' | 'index' | 'tag'>,
+  'index'
+>;
 export type RemoveQueryResponse = { success: boolean };
 
 export type BatchRemoveQueryRequest = {
