@@ -63,7 +63,7 @@ export type ListRelationshipResponse = {
   hasBefore: boolean;
   hasAfter: boolean;
 };
-export type BatchListRelationshipResponse = (ListRelationshipResponse | undefined)[];
+export type BatchListRelationshipResponse = ListRelationshipResponse[];
 
 export const isCreateRelationshipRequest = (
   body: any,
