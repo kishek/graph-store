@@ -21,10 +21,11 @@ function getStorageClient() {
 async function createManyRelationships(
   client: StorageClient,
   relations = ['b', 'c', 'd', 'e'],
+  parent = 'a',
 ) {
   for await (const r of relations) {
     await client.createRelationship({
-      nodeA: 'a',
+      nodeA: parent,
       nodeB: r,
       nodeAToBRelationshipName: 'parent' as RelationshipName,
       nodeBToARelationshipName: 'child' as RelationshipName,
@@ -1056,6 +1057,41 @@ test('is able to list relationships all under node id', async () => {
     hasBefore: false,
     hasAfter: false,
   });
+});
+
+test('is able to list relationships under multiple node ids', async () => {
+  const client = getStorageClient();
+
+  await createManyRelationships(client, ['b', 'c', 'd', 'e'], 'aa');
+  await createManyRelationships(client, ['b', 'c', 'd', 'e'], 'ab');
+
+  const result = await client.batchListRelationship({
+    requests: [
+      {
+        name: 'parent' as RelationshipName,
+        node: 'aa',
+        first: 2,
+      },
+      {
+        name: 'parent' as RelationshipName,
+        node: 'ab',
+        first: 3,
+      },
+    ],
+  });
+
+  expect(result.unwrap()).toEqual([
+    {
+      relationships: ['b', 'c'],
+      hasBefore: false,
+      hasAfter: true,
+    },
+    {
+      relationships: ['b', 'c', 'd'],
+      hasBefore: false,
+      hasAfter: true,
+    },
+  ]);
 });
 
 test('is able to list first N relationships under node id', async () => {

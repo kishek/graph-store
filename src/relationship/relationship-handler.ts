@@ -22,6 +22,9 @@ import {
   isRemoveRelationshipBatchRequest,
   RelationshipRequest,
   RelationshipTuple,
+  BatchListRelationshipRequest,
+  isBatchListRelationshipRequest,
+  BatchListRelationshipResponse,
 } from './relationship-request';
 import {
   StorageBadRequestError,
@@ -78,6 +81,9 @@ export class RelationshipHandler {
       }
       case 'list': {
         return await this.listRelationship(info);
+      }
+      case 'batchList': {
+        return await this.batchListRelationships(info);
       }
       default: {
         return Result.err(new StorageUnknownOperationError());
@@ -309,6 +315,59 @@ export class RelationshipHandler {
         allowConcurrency: true,
       })) ?? new Set();
 
+    return this.paginateRelationships(relationships, first, before, last, after);
+  }
+
+  private async batchListRelationships(
+    info: RequestInfo,
+  ): Promise<Result<BatchListRelationshipResponse, StorageError>> {
+    const { requests } = info.body<BatchListRelationshipRequest>(
+      isBatchListRelationshipRequest,
+    );
+
+    const results = await this.batcher.doChunkedRead<RelationshipData>(
+      requests.map(({ name, node }) => id(name, node)),
+    );
+
+    const relationships: ListRelationshipResponse[] = [];
+
+    let idx = 0;
+
+    for (const [, relationshipData] of results) {
+      const { first, before, last, after } = requests[idx];
+
+      if (!relationshipData) {
+        relationships.push({ relationships: [], hasBefore: false, hasAfter: false });
+        idx++;
+        continue;
+      }
+
+      const result = this.paginateRelationships(
+        relationshipData,
+        first,
+        before,
+        last,
+        after,
+      );
+      if (result.isErr) {
+        relationships.push({ relationships: [], hasBefore: false, hasAfter: false });
+        continue;
+      }
+
+      relationships.push(result.value);
+      idx++;
+    }
+
+    return Result.ok(relationships);
+  }
+
+  private paginateRelationships(
+    relationships: RelationshipData,
+    first: number | undefined,
+    before: string | undefined,
+    last: number | undefined,
+    after: string | undefined,
+  ) {
     let ids = Array.from(relationships.values());
     const length = ids.length;
 

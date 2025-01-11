@@ -32,13 +32,13 @@ export type ReadRelationshipResponse = { exists: boolean };
 
 export type RemoveRelationshipRequest =
   | {
-    tag?: string;
-    nodeA: string;
-    nodeB: string;
-    nodeAToBRelationshipName: RelationshipName;
-    nodeBToARelationshipName: RelationshipName;
-  }
-  | { node: string, tag?: string; };
+      tag?: string;
+      nodeA: string;
+      nodeB: string;
+      nodeAToBRelationshipName: RelationshipName;
+      nodeBToARelationshipName: RelationshipName;
+    }
+  | { node: string; tag?: string };
 export type RemoveRelationshipResponse = { success: boolean };
 
 export type RemoveRelationshipBatchRequest = RelationshipRequest[];
@@ -53,11 +53,17 @@ export type ListRelationshipRequest = {
   before?: string;
   after?: string;
 };
+
+export type BatchListRelationshipRequest = {
+  tag?: string;
+  requests: Omit<ListRelationshipRequest, 'tag'>[];
+};
 export type ListRelationshipResponse = {
   relationships: string[];
   hasBefore: boolean;
   hasAfter: boolean;
 };
+export type BatchListRelationshipResponse = (ListRelationshipResponse | undefined)[];
 
 export const isCreateRelationshipRequest = (
   body: any,
@@ -107,4 +113,12 @@ export const isRemoveRelationshipBatchRequest = (
 
 export const isListRelationshipRequest = (body: any): body is ListRelationshipRequest => {
   return body && typeof body.name === 'string';
+};
+
+export const isBatchListRelationshipRequest = (
+  body: any,
+): body is BatchListRelationshipRequest => {
+  return (
+    body && Array.isArray(body.requests) && body.requests.every(isListRelationshipRequest)
+  );
 };

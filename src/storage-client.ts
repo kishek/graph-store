@@ -46,6 +46,8 @@ import {
   CreateRelationshipBatchResponse,
   RemoveRelationshipBatchRequest,
   RemoveRelationshipBatchResponse,
+  BatchListRelationshipRequest,
+  BatchListRelationshipResponse,
 } from './relationship/relationship-request';
 import { StorageRequest } from './storage-request';
 import { retry } from './retry';
@@ -259,6 +261,14 @@ export class StorageClient {
     return this.execute<ListRelationshipResponse>({
       type: 'relationship',
       operation: 'list',
+      request: opts,
+    });
+  }
+
+  public batchListRelationship(opts: BatchListRelationshipRequest) {
+    return this.execute<BatchListRelationshipResponse>({
+      type: 'relationship',
+      operation: 'batchList',
       request: opts,
     });
   }

@@ -18,7 +18,8 @@ type RelationshipOperation =
   | 'remove'
   | 'list'
   | 'batchCreate'
-  | 'batchRemove';
+  | 'batchRemove'
+  | 'batchList';
 type StoreOperation = 'backup' | 'restore';
 type DiagnosticsOperation = 'log' | 'echo';
 
