@@ -274,6 +274,18 @@ export class StorageClient {
   }
 
   /**
+   * Deletes all relationships entirely from the store.
+   * @returns The number of items purged
+   */
+  public purgeAllRelationships() {
+    return this.execute<boolean>({
+      type: 'relationship',
+      operation: 'purge',
+      request: {},
+    });
+  }
+
+  /**
    * Deletes all purged items entirely from the store.
    * @returns The number of items purged
    */

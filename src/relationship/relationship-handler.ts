@@ -85,6 +85,9 @@ export class RelationshipHandler {
       case 'batchList': {
         return await this.batchListRelationships(info);
       }
+      case 'purge': {
+        return await this.purgeRelationships();
+      }
       default: {
         return Result.err(new StorageUnknownOperationError());
       }
@@ -174,6 +177,14 @@ export class RelationshipHandler {
     relations.delete(relatedToId);
 
     await transaction.put<RelationshipData>(id, relations);
+  }
+
+  private async purgeRelationships() {
+    const relations = await this.state.storage.list<any>({ prefix: 'relationship' });
+    const ids = Array.from(relations.keys());
+
+    await this.batcher.doChunkedDelete(new Set(ids));
+    return Result.ok({ success: true });
   }
 
   private async deleteRelationshipBatch(relations: RelationshipTuple[]) {
@@ -315,7 +326,7 @@ export class RelationshipHandler {
         allowConcurrency: true,
       })) ?? new Set();
 
-    return this.paginateRelationships(relationships, first, before, last, after);
+    return this.paginateRelationships(relationships, first, last, before, after);
   }
 
   private async batchListRelationships(
@@ -336,7 +347,7 @@ export class RelationshipHandler {
     for (const [, relationshipData] of results) {
       const { first, before, last, after } = requests[idx];
 
-      if (!relationshipData) {
+      if (!relationshipData || relationshipData.size === 0) {
         relationships.push({ relationships: [], hasBefore: false, hasAfter: false });
         idx++;
         continue;
@@ -345,16 +356,17 @@ export class RelationshipHandler {
       const result = this.paginateRelationships(
         relationshipData,
         first,
-        before,
         last,
+        before,
         after,
       );
       if (result.isErr) {
         relationships.push({ relationships: [], hasBefore: false, hasAfter: false });
+        idx++;
         continue;
       }
 
-      relationships.push(result.value);
+      relationships.push(result.unwrap());
       idx++;
     }
 
@@ -364,8 +376,8 @@ export class RelationshipHandler {
   private paginateRelationships(
     relationships: RelationshipData,
     first: number | undefined,
-    before: string | undefined,
     last: number | undefined,
+    before: string | undefined,
     after: string | undefined,
   ) {
     let ids = Array.from(relationships.values());
