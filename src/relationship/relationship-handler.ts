@@ -184,7 +184,7 @@ export class RelationshipHandler {
     const ids = Array.from(relations.keys());
 
     await this.batcher.doChunkedDelete(new Set(ids));
-    return Result.ok({ success: true });
+    return Result.ok(ids.length);
   }
 
   private async deleteRelationshipBatch(relations: RelationshipTuple[]) {

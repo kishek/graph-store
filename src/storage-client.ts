@@ -278,7 +278,7 @@ export class StorageClient {
    * @returns The number of items purged
    */
   public purgeAllRelationships() {
-    return this.execute<boolean>({
+    return this.execute<number>({
       type: 'relationship',
       operation: 'purge',
       request: {},
