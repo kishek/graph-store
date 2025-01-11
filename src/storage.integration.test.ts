@@ -1172,3 +1172,46 @@ test('is able to backup all data', async () => {
   expect(backup.objects).toHaveLength(1);
   expect(backup.objects[0].size).toBeGreaterThan(32);
 });
+
+test('is able to restore all data', async () => {
+  const client = getStorageClient();
+
+  await client.batchCreateQuery<TestEntity>({
+    entries: {
+      'entity-a': {
+        a: 1,
+        b: 2,
+        c: 3,
+      },
+      'entity-b': {
+        a: 4,
+        b: 5,
+        c: 6,
+      },
+    },
+  });
+
+  const result = await client.backup();
+  if (!result.isOk) {
+    throw result.error;
+  }
+
+  const backupId = result.unwrap();
+
+  await client.purgeAllQuery();
+  await client.restore({ backupId });
+
+  const items = await client.listQuery<TestEntity>({ key: 'entity' });
+  expect(items.unwrap()).toMatchObject({
+    'entity-a': {
+      a: 1,
+      b: 2,
+      c: 3,
+    },
+    'entity-b': {
+      a: 4,
+      b: 5,
+      c: 6,
+    },
+  });
+});

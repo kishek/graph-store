@@ -49,6 +49,7 @@ import {
 } from './relationship/relationship-request';
 import { StorageRequest } from './storage-request';
 import { retry } from './retry';
+import { RestoreRequest } from './store/store-request';
 
 export class HTTPError extends Error {
   private status: number;
@@ -283,6 +284,14 @@ export class StorageClient {
       type: 'store',
       operation: 'backup',
       request: {},
+    });
+  }
+
+  public restore(opts: RestoreRequest) {
+    return this.execute<RestoreRequest>({
+      type: 'store',
+      operation: 'restore',
+      request: opts,
     });
   }
 

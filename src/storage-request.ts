@@ -43,7 +43,7 @@ export type RelationshipRequest<T = Record<any, any>> = {
 };
 export type OperationalRequest<T> = {
   type: 'store';
-  operation: 'backup';
+  operation: StoreOperation;
   request: T;
 };
 export type DiagnosticRequest<T> = {
