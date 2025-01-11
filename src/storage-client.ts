@@ -273,6 +273,14 @@ export class StorageClient {
     });
   }
 
+  public diagnostics() {
+    return this.execute<boolean>({
+      type: 'diagnostic',
+      operation: 'log',
+      request: {},
+    });
+  }
+
   /**
    * Backs up the entire store to a durable object backup.
    * @returns The backup ID

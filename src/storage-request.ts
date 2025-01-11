@@ -22,7 +22,7 @@ type RelationshipOperation =
 type StoreOperation = 'backup' | 'restore';
 type DiagnosticsOperation = 'log';
 
-type StorageRequestType = 'query' | 'relationship' | 'index' | 'store' | 'diagnostics';
+type StorageRequestType = 'query' | 'relationship' | 'index' | 'store' | 'diagnostic';
 type StorageOperation =
   | ItemOperation
   | RelationshipOperation
@@ -55,7 +55,8 @@ export type DiagnosticRequest<T> = {
 export type StorageRequest<T = Record<any, any>> =
   | ItemRequest<T>
   | RelationshipRequest<T>
-  | OperationalRequest<T>;
+  | OperationalRequest<T>
+  | DiagnosticRequest<T>;
 
 export interface RequestInfo {
   type: StorageRequestType;
