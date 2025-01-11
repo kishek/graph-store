@@ -12,12 +12,14 @@ import { StorageError } from './storage-errors';
 import { parseRequest } from './storage-request';
 import { StorageEnvironment } from './storage-environment';
 import { StoreHandler } from './store/store-handler';
+import { DiagnosticsHandler } from './diagnostics/diagnostic-handler';
 
 export class Storage {
   private queryHandler: QueryHandler;
   private indexHandler: IndexHandler;
   private relationshipHandler: RelationshipHandler;
   private storeHandler: StoreHandler;
+  private diagnosticHandler: DiagnosticsHandler;
 
   constructor(state: DurableObjectState, env: StorageEnvironment) {
     this.relationshipHandler = new RelationshipHandler(state);
@@ -28,6 +30,7 @@ export class Storage {
       this.relationshipHandler,
     );
     this.storeHandler = new StoreHandler(state, env);
+    this.diagnosticHandler = new DiagnosticsHandler(state);
   }
 
   async fetch(request: Request) {
@@ -49,6 +52,10 @@ export class Storage {
           break;
         }
         case 'store': {
+          result = await this.storeHandler.handle(info);
+          break;
+        }
+        case 'diagnostics': {
           result = await this.storeHandler.handle(info);
           break;
         }

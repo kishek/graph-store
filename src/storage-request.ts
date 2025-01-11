@@ -20,9 +20,14 @@ type RelationshipOperation =
   | 'batchCreate'
   | 'batchRemove';
 type StoreOperation = 'backup' | 'restore';
+type DiagnosticsOperation = 'log';
 
-type StorageRequestType = 'query' | 'relationship' | 'index' | 'store';
-type StorageOperation = ItemOperation | RelationshipOperation | StoreOperation;
+type StorageRequestType = 'query' | 'relationship' | 'index' | 'store' | 'diagnostics';
+type StorageOperation =
+  | ItemOperation
+  | RelationshipOperation
+  | StoreOperation
+  | DiagnosticsOperation;
 
 export type ItemRequest<T = Record<any, any>> = {
   tag?: string;
@@ -39,6 +44,11 @@ export type RelationshipRequest<T = Record<any, any>> = {
 export type OperationalRequest<T> = {
   type: 'store';
   operation: 'backup';
+  request: T;
+};
+export type DiagnosticRequest<T> = {
+  type: 'diagnostic';
+  operation: DiagnosticsOperation;
   request: T;
 };
 
