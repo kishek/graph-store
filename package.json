@@ -62,6 +62,10 @@
     "./relationship/types": {
       "import": "./dist/relationship/relationship-request.d.ts",
       "require": "./dist/relationship/relationship-request.d.ts"
+    },
+    "./store/types": {
+      "import": "./dist/store/store-request.d.ts",
+      "require": "./dist/store/store-request.d.ts"
     }
   }
 }
