@@ -21,10 +21,10 @@ export class DiagnosticsHandler {
       method: 'GET',
     });
 
-    return {
+    return Result.ok({
       id: this.state.id,
       time: Date.now(),
       traceInfo: await trace.text(),
-    };
+    });
   }
 }

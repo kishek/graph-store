@@ -56,7 +56,7 @@ export class Storage {
           break;
         }
         case 'diagnostics': {
-          result = await this.storeHandler.handle(info);
+          result = await this.diagnosticHandler.handle(info);
           break;
         }
       }
