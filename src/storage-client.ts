@@ -81,6 +81,7 @@ function request(opts: StorageRequest<any>): HTTPRequest {
 export interface StorageClientMetadata {
   namespace: string;
   instrumented?: boolean;
+  hint?: DurableObjectLocationHint;
 }
 
 export class StorageClient {
@@ -273,14 +274,6 @@ export class StorageClient {
     });
   }
 
-  public diagnostics() {
-    return this.execute<boolean>({
-      type: 'diagnostic',
-      operation: 'log',
-      request: {},
-    });
-  }
-
   /**
    * Backs up the entire store to a durable object backup.
    * @returns The backup ID
@@ -289,6 +282,22 @@ export class StorageClient {
     return this.execute<string>({
       type: 'store',
       operation: 'backup',
+      request: {},
+    });
+  }
+
+  public diagnostics() {
+    return this.execute<boolean>({
+      type: 'diagnostic',
+      operation: 'log',
+      request: {},
+    });
+  }
+
+  public init() {
+    return this.execute<boolean>({
+      type: 'diagnostic',
+      operation: 'echo',
       request: {},
     });
   }

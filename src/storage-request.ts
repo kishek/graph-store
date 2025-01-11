@@ -20,7 +20,7 @@ type RelationshipOperation =
   | 'batchCreate'
   | 'batchRemove';
 type StoreOperation = 'backup' | 'restore';
-type DiagnosticsOperation = 'log';
+type DiagnosticsOperation = 'log' | 'echo';
 
 type StorageRequestType = 'query' | 'relationship' | 'index' | 'store' | 'diagnostic';
 type StorageOperation =

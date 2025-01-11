@@ -108,7 +108,9 @@ export const getDurableObjectSingleton = (context: {
 }) => {
   const durableObjectNamespace = `storage-${context.meta.namespace}`;
   const durableObjectId = context.env.GRAPH_STORAGE.idFromName(durableObjectNamespace);
-  const durableObject = context.env.GRAPH_STORAGE.get(durableObjectId);
+  const durableObject = context.env.GRAPH_STORAGE.get(durableObjectId, {
+    locationHint: context.meta.hint,
+  });
 
   return durableObject;
 };

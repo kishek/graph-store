@@ -10,6 +10,9 @@ export class DiagnosticsHandler {
       case 'log': {
         return await this.log();
       }
+      case 'echo': {
+        return await this.echo();
+      }
       default: {
         return Result.err(new StorageUnknownOperationError());
       }
@@ -26,5 +29,9 @@ export class DiagnosticsHandler {
       time: Date.now(),
       traceInfo: await trace.text(),
     });
+  }
+
+  private async echo() {
+    return this.log();
   }
 }
