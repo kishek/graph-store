@@ -26,11 +26,12 @@ export class StoreHandler {
     }
   }
 
-  private async backup() {
+  private async backup(reason?: string) {
     const id = this.state.id;
     const time = Date.now();
+    const suffix = reason ? `-${reason}` : '';
 
-    const name = `${id}/graph-store-${time}.json`;
+    const name = `${id}/graph-store-${time}${suffix}.json`;
 
     const data = await this.state.storage.list();
     const entries = Object.fromEntries(data.entries());
@@ -56,7 +57,10 @@ export class StoreHandler {
 
     const body = (await backup.json()) as Record<string, string>;
 
+    // do a backup before restore in case of any issues
+    await this.backup('before-restore');
     await this.state.storage.deleteAll();
+
     this.batcher.doChunkedWrite(body);
 
     return Result.ok({ count: Object.keys(body).length });
