@@ -132,5 +132,5 @@ export const getStorageClient = (context: {
 };
 
 export type { RelationshipName, RelationshipRequest };
-export { StorageClient } from './storage-client';
+export { StorageClient, type StorageMiddleware } from './storage-client';
 export type { StorageEnvironment } from './storage-environment';
