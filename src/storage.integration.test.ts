@@ -1251,3 +1251,39 @@ test('is able to restore all data', async () => {
     },
   });
 });
+
+test('is able to apply middleware', async () => {
+  const client = getStorageClient();
+
+  client.use((ctx) => {
+    if (
+      ctx.type === 'query' &&
+      (ctx.operation === 'create' || ctx.operation === 'update')
+    ) {
+      ctx.request.value = {
+        ...ctx.request.value,
+        createdBy: 'test-user',
+        updatedBy: 'test-user',
+      };
+    }
+
+    return ctx;
+  });
+
+  const entity = await client.createQuery<TestEntity>({
+    key: 'a',
+    value: {
+      a: 1,
+      b: 2,
+      c: 3,
+    },
+  });
+
+  expect(entity.unwrap()).toMatchObject({
+    a: 1,
+    b: 2,
+    c: 3,
+    createdBy: 'test-user',
+    updatedBy: 'test-user',
+  });
+});

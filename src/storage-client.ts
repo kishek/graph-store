@@ -87,14 +87,21 @@ export interface StorageClientMetadata {
   hint?: DurableObjectLocationHint;
 }
 
+export type StorageMiddleware = (opts: StorageRequest<any>) => StorageRequest<any>;
+
 export class StorageClient {
   private constructor(
     private api: DurableObjectStub,
     private meta: StorageClientMetadata,
+    private middlewares: StorageMiddleware[] = [],
   ) {}
 
   public static from(api: DurableObjectStub, meta: StorageClientMetadata) {
     return new StorageClient(api, meta);
+  }
+
+  public use(middleware: StorageMiddleware) {
+    this.middlewares.push(middleware);
   }
 
   public createIndex(opts: CreateIndexRequest) {
@@ -334,9 +341,11 @@ export class StorageClient {
   }
 
   private async execute<T>(opts: StorageRequest<any>): Promise<Result<T, HTTPError>> {
+    const request = this.getStorageRequest(opts);
+
     if (this.meta.instrumented) {
       const start = Date.now();
-      const result = await this.doOperation<T>(opts);
+      const result = await this.doOperation<T>(this.getStorageRequest(request));
       const end = Date.now();
 
       console.log({
@@ -346,7 +355,8 @@ export class StorageClient {
 
       return result;
     }
-    return await this.doOperation(opts);
+
+    return await this.doOperation(request);
   }
 
   private async doOperation<T>(opts: StorageRequest<any>): Promise<Result<T, HTTPError>> {
@@ -376,5 +386,9 @@ export class StorageClient {
   private async doNetworkOperation<T>(opts: StorageRequest<any>) {
     const response = await this.api.fetch('https://durable-object.com/', request(opts));
     return response;
+  }
+
+  private getStorageRequest<T>(opts: StorageRequest<T>): StorageRequest<T> {
+    return this.middlewares.reduce((acc, middleware) => middleware(acc), opts);
   }
 }

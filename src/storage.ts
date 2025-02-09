@@ -7,7 +7,11 @@ import {
   RelationshipName,
   RelationshipRequest,
 } from './relationship/relationship-request';
-import { StorageClient, StorageClientMetadata } from './storage-client';
+import {
+  StorageClient,
+  StorageClientMetadata,
+  StorageMiddleware,
+} from './storage-client';
 import { StorageError } from './storage-errors';
 import { parseRequest } from './storage-request';
 import { StorageEnvironment } from './storage-environment';
@@ -118,6 +122,7 @@ export const getDurableObjectSingleton = (context: {
 export const getStorageClient = (context: {
   env: StorageEnvironment;
   meta: StorageClientMetadata;
+  middleware: StorageMiddleware[];
 }) => {
   return StorageClient.from(getDurableObjectSingleton(context), context.meta);
 };
