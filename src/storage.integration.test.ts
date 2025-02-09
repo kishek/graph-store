@@ -5,6 +5,7 @@ import { RelationshipName, StorageEnvironment } from './storage';
 import { StorageClient } from './storage-client';
 
 import '../example';
+import { isCreateQueryRequest, isUpdateQueryRequest } from './query/query-request';
 
 declare module 'cloudflare:test' {
   interface ProvidedEnv extends StorageEnvironment {}
@@ -378,7 +379,6 @@ test('batch upserts entities in database', async () => {
   });
 
   const items = await client.listQuery<TestEntity>({ key: 'entity' });
-  console.log(items.unwrap());
   expect(items.unwrap()).toMatchObject({
     'entity-a': {
       a: 101,
@@ -1256,21 +1256,25 @@ test('is able to apply middleware', async () => {
   const client = getStorageClient();
 
   client.use((ctx) => {
-    if (
-      ctx.type === 'query' &&
-      (ctx.operation === 'create' || ctx.operation === 'update')
-    ) {
-      ctx.request.value = {
-        ...ctx.request.value,
-        createdBy: 'test-user',
-        updatedBy: 'test-user',
-      };
+    if (ctx.type === 'query') {
+      if (isCreateQueryRequest<any>(ctx.request)) {
+        ctx.request.value = {
+          ...ctx.request.value,
+          createdBy: 'test-user',
+        };
+      }
+      if (isUpdateQueryRequest<any>(ctx.request)) {
+        ctx.request.value = {
+          ...ctx.request.value,
+          updatedBy: 'test-user-updated',
+        };
+      }
     }
 
     return ctx;
   });
 
-  const entity = await client.createQuery<TestEntity>({
+  await client.createQuery<TestEntity>({
     key: 'a',
     value: {
       a: 1,
@@ -1279,11 +1283,18 @@ test('is able to apply middleware', async () => {
     },
   });
 
-  expect(entity.unwrap()).toMatchObject({
-    a: 1,
+  const entityUpdated = await client.updateQuery<TestEntity>({
+    key: 'a',
+    value: {
+      a: 3,
+    },
+  });
+
+  expect(entityUpdated.unwrap()).toMatchObject({
+    a: 3,
     b: 2,
     c: 3,
     createdBy: 'test-user',
-    updatedBy: 'test-user',
+    updatedBy: 'test-user-updated',
   });
 });
