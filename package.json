@@ -51,6 +51,10 @@
       "import": "./dist/storage-client.js",
       "require": "./dist/storage-client.js"
     },
+    "./query": {
+      "import": "./dist/query/query-request.js",
+      "require": "./dist/query/query-request.js"
+    },
     "./index/types": {
       "import": "./dist/index/index-request.d.ts",
       "require": "./dist/index/index-request.d.ts"
