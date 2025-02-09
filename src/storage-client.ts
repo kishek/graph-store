@@ -96,8 +96,12 @@ export class StorageClient {
     private middlewares: StorageMiddleware[] = [],
   ) {}
 
-  public static from(api: DurableObjectStub, meta: StorageClientMetadata) {
-    return new StorageClient(api, meta);
+  public static from(
+    api: DurableObjectStub,
+    meta: StorageClientMetadata,
+    middlewares: StorageMiddleware[] = [],
+  ) {
+    return new StorageClient(api, meta, middlewares);
   }
 
   public use(middleware: StorageMiddleware) {

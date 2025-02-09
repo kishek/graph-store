@@ -122,9 +122,13 @@ export const getDurableObjectSingleton = (context: {
 export const getStorageClient = (context: {
   env: StorageEnvironment;
   meta: StorageClientMetadata;
-  middleware: StorageMiddleware[];
+  middleware?: StorageMiddleware[];
 }) => {
-  return StorageClient.from(getDurableObjectSingleton(context), context.meta);
+  return StorageClient.from(
+    getDurableObjectSingleton(context),
+    context.meta,
+    context.middleware,
+  );
 };
 
 export type { RelationshipName, RelationshipRequest };
