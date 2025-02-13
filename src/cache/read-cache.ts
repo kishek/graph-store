@@ -6,14 +6,18 @@ export class InMemoryReadCache {
   }
 
   get<T>(key: string) {
-    return this.cache.get(key) as T | undefined;
+    const result = this.cache.get(key) as T | undefined;
+    console.log({ cache: 'get', key, result: !!result });
+    return result;
   }
 
   set(key: string, value: any) {
     this.cache.set(key, value);
+    console.log({ cache: 'set', key });
   }
 
   deleteAll() {
     this.cache.clear();
+    console.log({ cache: 'deleteAll' });
   }
 }
