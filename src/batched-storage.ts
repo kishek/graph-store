@@ -11,7 +11,9 @@ export class BatchedStorage {
 
     await Promise.all(
       chunks.map(async (chunk) => {
-        const results = await this.state.storage.get<T>(chunk);
+        const results = await this.state.storage.get<T>(chunk, {
+          allowConcurrency: true,
+        });
         for (const [k, v] of results) {
           items.set(k, v);
         }

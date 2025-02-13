@@ -141,7 +141,9 @@ export class QueryHandler {
     const query = info.body(isReadQueryRequest);
     const key = this.keyFromQuery(query.key, query.index);
 
-    const item = await this.state.storage.get<ReadQueryResponse<T>>(key);
+    const item = await this.state.storage.get<ReadQueryResponse<T>>(key, {
+      allowConcurrency: true,
+    });
     if (!item) {
       return Result.err(new StorageNotFoundError());
     }
@@ -255,7 +257,10 @@ export class QueryHandler {
   ): Promise<Result<ListQueryResponse<T>, StorageError>> {
     const query = info.body(isListQueryRequest);
     const prefix = this.keyFromQuery(query.key, query.index);
-    const items = await this.state.storage.list<QueryResponse<T>>({ prefix });
+    const items = await this.state.storage.list<QueryResponse<T>>({
+      prefix,
+      allowConcurrency: true,
+    });
 
     const response = new Map<string, QueryResponse<T>>();
     items.forEach((value) => response.set(value.id, value));

@@ -81,7 +81,9 @@ export class IndexHandler {
     info: RequestInfo,
   ): Promise<Result<ReadIndexResponse | StorageError>> {
     const input = info.body(isReadIndexRequest);
-    const index = await this.state.storage.get<Index>(input.id);
+    const index = await this.state.storage.get<Index>(input.id, {
+      allowConcurrency: true,
+    });
     if (!index) {
       return Result.err(new StorageNotFoundError());
     }
@@ -101,7 +103,10 @@ export class IndexHandler {
   }
 
   private async listIndexes(): Promise<Result<ListIndexResponse | StorageError>> {
-    const indexes = await this.state.storage.list<Index>({ prefix: 'idx:' });
+    const indexes = await this.state.storage.list<Index>({
+      prefix: 'idx:',
+      allowConcurrency: true,
+    });
 
     return Result.ok(Object.fromEntries(indexes));
   }
