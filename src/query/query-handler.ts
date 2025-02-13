@@ -276,6 +276,7 @@ export class QueryHandler {
 
     const cached = this.cache.get<ListQueryResponse<T>>(prefix);
     if (cached) {
+      console.log({ cache: 'hit' });
       return Result.ok(cached);
     }
 
