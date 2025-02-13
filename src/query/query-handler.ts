@@ -38,21 +38,25 @@ import {
 } from '../storage-errors';
 import { RequestInfo } from '../storage-request';
 import { BatchedStorage } from '../batched-storage';
+import { InMemoryReadCache } from '../cache/read-cache';
 
 export class QueryHandler {
   constructor(
     private state: DurableObjectState,
     private indexHandler: IndexHandler,
     private relationshipHandler: RelationshipHandler,
-    private batcher = new BatchedStorage(state),
+    private cache: InMemoryReadCache,
+    private batcher = new BatchedStorage(state, cache),
   ) {}
 
   async handle<T extends { id?: string }>(info: RequestInfo) {
     switch (info.operation) {
       case 'create': {
+        this.cache.deleteAll();
         return await this.createQuery<T>(info);
       }
       case 'batchCreate': {
+        this.cache.deleteAll();
         return await this.batchCreateQuery<T>(info);
       }
       case 'read': {
@@ -62,24 +66,30 @@ export class QueryHandler {
         return await this.batchReadQuery<T>(info);
       }
       case 'update': {
+        this.cache.deleteAll();
         return await this.updateQuery<T>(info);
       }
       case 'batchUpdate': {
+        this.cache.deleteAll();
         return await this.batchUpdateQuery<T>(info);
       }
       case 'batchUpsert': {
+        this.cache.deleteAll();
         return await this.batchUpsertQuery<T>(info);
       }
       case 'remove': {
+        this.cache.deleteAll();
         return await this.removeQuery(info);
       }
       case 'batchRemove': {
+        this.cache.deleteAll();
         return await this.batchRemoveQuery(info);
       }
       case 'list': {
         return await this.listQuery<T>(info);
       }
       case 'purge': {
+        this.cache.deleteAll();
         return await this.purgeAllQuery();
       }
       default: {
@@ -141,6 +151,11 @@ export class QueryHandler {
     const query = info.body(isReadQueryRequest);
     const key = this.keyFromQuery(query.key, query.index);
 
+    const cached = this.cache.get<ReadQueryResponse<T>>(key);
+    if (cached) {
+      return Result.ok(cached);
+    }
+
     const item = await this.state.storage.get<ReadQueryResponse<T>>(key, {
       allowConcurrency: true,
     });
@@ -148,6 +163,7 @@ export class QueryHandler {
       return Result.err(new StorageNotFoundError());
     }
 
+    this.cache.set(key, item);
     return Result.ok(item);
   }
 
@@ -257,6 +273,12 @@ export class QueryHandler {
   ): Promise<Result<ListQueryResponse<T>, StorageError>> {
     const query = info.body(isListQueryRequest);
     const prefix = this.keyFromQuery(query.key, query.index);
+
+    const cached = this.cache.get<ListQueryResponse<T>>(prefix);
+    if (cached) {
+      return Result.ok(cached);
+    }
+
     const items = await this.state.storage.list<QueryResponse<T>>({
       prefix,
       allowConcurrency: true,
@@ -265,7 +287,10 @@ export class QueryHandler {
     const response = new Map<string, QueryResponse<T>>();
     items.forEach((value) => response.set(value.id, value));
 
-    return Result.ok(Object.fromEntries(response));
+    const entries = Object.fromEntries(response);
+
+    this.cache.set(prefix, entries);
+    return Result.ok(entries);
   }
 
   private async purgeAllQuery(): Promise<Result<boolean, StorageError>> {

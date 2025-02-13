@@ -17,6 +17,7 @@ import { parseRequest } from './storage-request';
 import { StorageEnvironment } from './storage-environment';
 import { StoreHandler } from './store/store-handler';
 import { DiagnosticsHandler } from './diagnostics/diagnostic-handler';
+import { InMemoryReadCache } from './cache/read-cache';
 
 export class Storage {
   private queryHandler: QueryHandler;
@@ -25,15 +26,18 @@ export class Storage {
   private storeHandler: StoreHandler;
   private diagnosticHandler: DiagnosticsHandler;
 
+  private cache: InMemoryReadCache = new InMemoryReadCache();
+
   constructor(state: DurableObjectState, env: StorageEnvironment) {
-    this.relationshipHandler = new RelationshipHandler(state);
+    this.relationshipHandler = new RelationshipHandler(state, this.cache);
     this.indexHandler = new IndexHandler(state);
     this.queryHandler = new QueryHandler(
       state,
       this.indexHandler,
       this.relationshipHandler,
+      this.cache,
     );
-    this.storeHandler = new StoreHandler(state, env);
+    this.storeHandler = new StoreHandler(state, env, this.cache);
     this.diagnosticHandler = new DiagnosticsHandler(state);
   }
 

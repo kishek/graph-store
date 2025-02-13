@@ -4,12 +4,14 @@ import { RequestInfo } from '../storage-request';
 import { StorageEnvironment } from 'src/storage-environment';
 import { isRestoreRequest } from './store-request';
 import { BatchedStorage } from '../batched-storage';
+import { InMemoryReadCache } from '../cache/read-cache';
 
 export class StoreHandler {
   constructor(
     private state: DurableObjectState,
     private env: StorageEnvironment,
-    private batcher = new BatchedStorage(state),
+    cache: InMemoryReadCache,
+    private batcher = new BatchedStorage(state, cache),
   ) {}
 
   async handle(info: RequestInfo) {

@@ -34,6 +34,7 @@ import {
 } from '../storage-errors';
 import { RequestInfo } from '../storage-request';
 import { BatchedStorage } from '../batched-storage';
+import { InMemoryReadCache } from '../cache/read-cache';
 
 export const hierarchicalRole = {
   parent: 'parent' as RelationshipName,
@@ -59,7 +60,8 @@ const mappingId = (relationshipName: RelationshipName) => {
 export class RelationshipHandler {
   constructor(
     private state: DurableObjectState,
-    private batcher = new BatchedStorage(state),
+    private cache: InMemoryReadCache,
+    private batcher = new BatchedStorage(state, cache),
   ) {}
 
   async handle(info: RequestInfo) {
