@@ -1,6 +1,6 @@
 {
   "name": "@kishek/graph-store",
-  "version": "1.0.47",
+  "version": "1.0.48",
   "description": "A graph store built on top of Durable Objects for highly connected data.",
   "main": "./dist/storage.js",
   "types": "./dist/storage.js",
