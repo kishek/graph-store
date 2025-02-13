@@ -12,7 +12,6 @@ export class InMemoryReadCache {
 
   set(key: string, value: any) {
     this.cache.set(key, value);
-    console.log({ cache: 'set', key });
   }
 
   deleteAll() {
