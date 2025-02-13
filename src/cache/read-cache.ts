@@ -6,7 +6,7 @@ export class InMemoryReadCache {
   }
 
   get<T>(key: string) {
-    return this.cache.get(key) as T;
+    return this.cache.get(key) as T | undefined;
   }
 
   set(key: string, value: any) {

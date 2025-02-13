@@ -67,18 +67,22 @@ export class RelationshipHandler {
   async handle(info: RequestInfo) {
     switch (info.operation) {
       case 'create': {
+        this.cache.deleteAll();
         return await this.createRelationship(info);
       }
       case 'batchCreate': {
+        this.cache.deleteAll();
         return await this.createRelationshipBatch(info);
       }
       case 'read': {
         return await this.hasRelationship(info);
       }
       case 'remove': {
+        this.cache.deleteAll();
         return await this.removeRelationship(info);
       }
       case 'batchRemove': {
+        this.cache.deleteAll();
         return await this.removeRelationshipBatch(info);
       }
       case 'list': {
@@ -88,6 +92,7 @@ export class RelationshipHandler {
         return await this.batchListRelationships(info);
       }
       case 'purge': {
+        this.cache.deleteAll();
         return await this.purgeRelationships();
       }
       default: {
