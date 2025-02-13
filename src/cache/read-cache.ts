@@ -7,7 +7,6 @@ export class InMemoryReadCache {
 
   get<T>(key: string) {
     const result = this.cache.get(key) as T | undefined;
-    console.log({ cache: 'get', key, result: !!result });
     return result;
   }
 
