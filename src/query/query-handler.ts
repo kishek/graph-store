@@ -291,20 +291,26 @@ export class QueryHandler {
         ? await this.getQueryItems<T>(prefix, query)
         : await this.getPaginatedItems<T>(first, before, last, after, prefix);
 
+    // no filtering - cache entire result
+    if (!query && !first && !last && !before && !after) {
+      this.cache.set(prefix, items);
+    }
+
     const response = new Map<string, QueryResponse<T>>();
     items.forEach((value) => response.set(value.id, value));
 
     const entries = Object.fromEntries(response);
-
-    this.cache.set(prefix, entries);
     return Result.ok(entries);
   }
 
   private async getQueryItems<T>(prefix: string, query: ListQueryRange<T>[]) {
-    const items = await this.state.storage.list<QueryResponse<T>>({
-      prefix,
-      allowConcurrency: true,
-    });
+    const items =
+      this.cache.get<Map<string, QueryResponse<T>>>(prefix) ??
+      (await this.state.storage.list<QueryResponse<T>>({
+        prefix,
+        allowConcurrency: true,
+      }));
+    this.cache.set(prefix, items);
 
     const result = new Map<string, QueryResponse<T>>();
 
