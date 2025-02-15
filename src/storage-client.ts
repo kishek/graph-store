@@ -87,6 +87,7 @@ export interface StorageClientMetadata {
   namespace: string;
   instrumented?: boolean;
   hint?: DurableObjectLocationHint;
+  version?: number;
 }
 
 export type StorageMiddleware = (opts: StorageRequest<any>) => StorageRequest<any>;
@@ -347,6 +348,42 @@ export class StorageClient {
   }
 
   private async execute<T>(opts: StorageRequest<any>): Promise<Result<T, StorageError>> {
+    if (this.meta.version === 1) {
+      return this.executeV1<T>(opts);
+    } else {
+      return this.executeV2<T>(opts);
+    }
+  }
+
+  private async executeV1<T>(
+    opts: StorageRequest<any>,
+  ): Promise<Result<T, StorageError>> {
+    const request = this.getStorageRequest(opts);
+
+    if (this.meta.instrumented) {
+      const start = Date.now();
+      const result = await this.doOperation<T>(this.getStorageRequest(request));
+      const end = Date.now();
+
+      const tag =
+        'tag' in opts.request
+          ? opts.request.tag
+          : opts.tag ?? `${opts.operation}:${opts.type}`;
+
+      console.log({
+        tag,
+        duration: end - start,
+      });
+
+      return result;
+    }
+
+    return await this.doOperationV2(request);
+  }
+
+  private async executeV2<T>(
+    opts: StorageRequest<any>,
+  ): Promise<Result<T, StorageError>> {
     const request = this.getStorageRequest(opts);
 
     if (this.meta.instrumented) {
