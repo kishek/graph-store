@@ -286,9 +286,10 @@ export class QueryHandler {
     const prefix = this.keyFromQuery(input.key, input.index);
     const { first, last, before, after, query } = input;
 
-    const items = query
-      ? await this.getQueryItems<T>(prefix, query)
-      : await this.getPaginatedItems<T>(first, before, last, after, prefix);
+    const items =
+      query && query.length > 0
+        ? await this.getQueryItems<T>(prefix, query)
+        : await this.getPaginatedItems<T>(first, before, last, after, prefix);
 
     const response = new Map<string, QueryResponse<T>>();
     items.forEach((value) => response.set(value.id, value));
