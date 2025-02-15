@@ -299,7 +299,7 @@ export class QueryHandler {
     return Result.ok(entries);
   }
 
-  private async getQueryItems<T>(prefix: string, query: ListQueryRange<T>) {
+  private async getQueryItems<T>(prefix: string, query: ListQueryRange<T>[]) {
     const items = await this.state.storage.list<QueryResponse<T>>({
       prefix,
       allowConcurrency: true,
@@ -308,8 +308,12 @@ export class QueryHandler {
     const result = new Map<string, QueryResponse<T>>();
 
     for (const [key, value] of items.entries()) {
-      const v = value[query.property as keyof T];
-      if (!v || !(v >= query.min && v <= query.max)) {
+      const matches = query.every((q) => {
+        const property = value[q.property];
+        return property >= q.min && property <= q.max;
+      });
+
+      if (!matches) {
         continue;
       }
 

@@ -1563,9 +1563,12 @@ test('able to perform a ranged list query', async () => {
 
   const items = await client.listQuery<TestEntity>({
     key: 'entity',
-    query: { type: 'range', min: 5, max: 8, property: 'b' },
+    query: [
+      { type: 'range', min: 2, max: 6, property: 'a' },
+      { type: 'range', min: 5, max: 8, property: 'b' },
+    ],
   });
   const result = items.unwrap();
 
-  expect(Object.keys(result)).toEqual(['entity-b', 'entity-c']);
+  expect(Object.keys(result)).toEqual(['entity-b']);
 });

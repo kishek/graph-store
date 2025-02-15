@@ -65,7 +65,7 @@ export type ListQueryRequest<T> = Partial<Pick<QueryRequest, 'key' | 'index' | '
   last?: number;
   before?: string;
   after?: string;
-  query?: ListQueryRange<T>;
+  query?: ListQueryRange<T>[];
 };
 export type ListQueryResponse<T> = Record<string, QueryResponse<T>>;
 
