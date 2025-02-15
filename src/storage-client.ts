@@ -52,6 +52,8 @@ import {
 import { StorageRequest } from './storage-request';
 import { retry } from './retry';
 import { RestoreRequest } from './store/store-request';
+import { Storage } from './storage';
+import { StorageError } from './storage-errors';
 
 export class HTTPError extends Error {
   private status: number;
@@ -91,13 +93,13 @@ export type StorageMiddleware = (opts: StorageRequest<any>) => StorageRequest<an
 
 export class StorageClient {
   private constructor(
-    private api: DurableObjectStub,
+    private api: DurableObjectStub<Storage>,
     private meta: StorageClientMetadata,
     private middlewares: StorageMiddleware[] = [],
   ) {}
 
   public static from(
-    api: DurableObjectStub,
+    api: DurableObjectStub<Storage>,
     meta: StorageClientMetadata,
     middlewares: StorageMiddleware[] = [],
   ) {
@@ -344,23 +346,28 @@ export class StorageClient {
     });
   }
 
-  private async execute<T>(opts: StorageRequest<any>): Promise<Result<T, HTTPError>> {
+  private async execute<T>(opts: StorageRequest<any>): Promise<Result<T, StorageError>> {
     const request = this.getStorageRequest(opts);
 
     if (this.meta.instrumented) {
       const start = Date.now();
-      const result = await this.doOperation<T>(this.getStorageRequest(request));
+      const result = await this.doOperationV2<T>(this.getStorageRequest(request));
       const end = Date.now();
 
+      const tag =
+        'tag' in opts.request
+          ? opts.request.tag
+          : opts.tag ?? `${opts.operation}:${opts.type}`;
+
       console.log({
-        tag: opts.request.tag ?? `${opts.operation}:${opts.type}`,
+        tag,
         duration: end - start,
       });
 
       return result;
     }
 
-    return await this.doOperation(request);
+    return await this.doOperationV2(request);
   }
 
   private async doOperation<T>(opts: StorageRequest<any>): Promise<Result<T, HTTPError>> {
@@ -387,9 +394,50 @@ export class StorageClient {
     return Result.ok(json);
   }
 
+  private async doOperationV2<T>(
+    opts: StorageRequest<any>,
+  ): Promise<Result<T, StorageError>> {
+    const result: Result<T, StorageError> = await retry(
+      'storage',
+      () => this.doRpcOperation<T>(opts),
+      {
+        maxRetries: 3,
+        delay: 100,
+        factor: 2,
+        shouldRetryOnSuccess: (result) => {
+          if (result.isErr) {
+            const error: any = result.error;
+            return error && error.retryable;
+          } else {
+            return false;
+          }
+        },
+      },
+    );
+
+    if (result.isErr) {
+      return Result.err(result.error);
+    }
+
+    return Result.ok(result.value);
+  }
+
   private async doNetworkOperation<T>(opts: StorageRequest<any>) {
     const response = await this.api.fetch('https://durable-object.com/', request(opts));
     return response;
+  }
+
+  private async doRpcOperation<T>(
+    opts: StorageRequest<any>,
+  ): Promise<Result<T, StorageError>> {
+    const result = await this.api.handle(opts);
+    if (result.type === 'error') {
+      return Result.err(result.error);
+    } else if (result.type === 'success') {
+      return Result.ok((result as any).value);
+    }
+
+    return Result.err(new StorageError('unknown'));
   }
 
   private getStorageRequest<T>(opts: StorageRequest<T>): StorageRequest<T> {

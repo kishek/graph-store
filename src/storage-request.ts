@@ -1,81 +1,125 @@
+import {
+  CreateIndexRequest,
+  ListIndexRequest,
+  ReadIndexRequest,
+  RemoveIndexRequest,
+  UpdateIndexRequest,
+} from './index/index-request';
+import {
+  BatchCreateQueryRequest,
+  BatchReadQueryRequest,
+  BatchRemoveQueryRequest,
+  BatchUpdateQueryRequest,
+  BatchUpsertQueryRequest,
+  CreateQueryRequest,
+  ListQueryRequest,
+  ReadQueryRequest,
+  RemoveQueryRequest,
+  UpdateQueryRequest,
+} from './query/query-request';
+import {
+  BatchListRelationshipRequest,
+  CreateRelationshipBatchRequest,
+  CreateRelationshipRequest,
+  ListRelationshipRequest,
+  ReadRelationshipRequest,
+  RemoveRelationshipBatchNodeRequest,
+  RemoveRelationshipBatchRequest,
+  RemoveRelationshipNodeRequest,
+  RemoveRelationshipRequest,
+} from './relationship/relationship-request';
 import { StorageBadRequestError } from './storage-errors';
+import { RestoreRequest } from './store/store-request';
 
-type ItemOperation =
-  | 'create'
-  | 'read'
-  | 'update'
-  | 'remove'
-  | 'list'
-  | 'batchRead'
-  | 'batchUpdate'
-  | 'batchUpsert'
-  | 'batchCreate'
-  | 'batchRemove'
-  | 'purge';
-type RelationshipOperation =
-  | 'create'
-  | 'read'
-  | 'remove'
-  | 'list'
-  | 'batchCreate'
-  | 'batchRemove'
-  | 'batchList'
-  | 'purge';
-type StoreOperation = 'backup' | 'restore';
-type DiagnosticsOperation = 'log' | 'echo';
-
-type StorageRequestType = 'query' | 'relationship' | 'index' | 'store' | 'diagnostic';
-type StorageOperation =
-  | ItemOperation
-  | RelationshipOperation
-  | StoreOperation
-  | DiagnosticsOperation;
-
-export type ItemRequest<T = Record<any, any>> = {
+type QueryBase<T, S> = {
+  type: 'query';
   tag?: string;
-  type: 'query' | 'index';
-  operation: ItemOperation;
-  request: T;
+  operation: T;
+  request: S;
 };
-export type RelationshipRequest<T = Record<any, any>> = {
+
+export type QueryStorageRequest<T = Record<any, any>> =
+  | QueryBase<'create', CreateQueryRequest<T>>
+  | QueryBase<'batchCreate', BatchCreateQueryRequest<T>>
+  | QueryBase<'read', ReadQueryRequest>
+  | QueryBase<'batchRead', BatchReadQueryRequest>
+  | QueryBase<'update', UpdateQueryRequest<T>>
+  | QueryBase<'batchUpdate', BatchUpdateQueryRequest<T>>
+  | QueryBase<'batchUpsert', BatchUpsertQueryRequest<T>>
+  | QueryBase<'remove', RemoveQueryRequest>
+  | QueryBase<'batchRemove', BatchRemoveQueryRequest>
+  | QueryBase<'list', ListQueryRequest>
+  | QueryBase<'purge', {}>;
+
+type IndexBase<T, S> = {
+  type: 'index';
   tag?: string;
+  operation: T;
+  request: S;
+};
+
+export type IndexStorageRequest =
+  | IndexBase<'create', CreateIndexRequest>
+  | IndexBase<'read', ReadIndexRequest>
+  | IndexBase<'update', UpdateIndexRequest>
+  | IndexBase<'remove', RemoveIndexRequest>
+  | IndexBase<'list', {}>;
+
+type RelationshipBase<T, S> = {
   type: 'relationship';
-  operation: RelationshipOperation;
-  request: T;
+  tag?: string;
+  operation: T;
+  request: S;
 };
-export type OperationalRequest<T> = {
+
+export type RelationshipStorageRequest =
+  | RelationshipBase<'create', CreateRelationshipRequest>
+  | RelationshipBase<'batchCreate', CreateRelationshipBatchRequest>
+  | RelationshipBase<'read', ReadRelationshipRequest>
+  | RelationshipBase<'remove', RemoveRelationshipRequest>
+  | RelationshipBase<'batchRemove', RemoveRelationshipBatchRequest>
+  | RelationshipBase<'removeNode', RemoveRelationshipNodeRequest>
+  | RelationshipBase<'batchRemoveNode', RemoveRelationshipBatchNodeRequest>
+  | RelationshipBase<'list', ListRelationshipRequest>
+  | RelationshipBase<'batchList', BatchListRelationshipRequest>
+  | RelationshipBase<'purge', {}>;
+
+type OperationalBase<T, S> = {
   type: 'store';
-  operation: StoreOperation;
-  request: T;
+  tag?: string;
+  operation: T;
+  request: S;
 };
-export type DiagnosticRequest<T> = {
+
+export type OperationalStorageRequest =
+  | OperationalBase<'backup', {}>
+  | OperationalBase<'restore', RestoreRequest>;
+
+type DiagnosticBase<T, S> = {
   type: 'diagnostic';
-  operation: DiagnosticsOperation;
-  request: T;
+  tag?: string;
+  operation: T;
+  request: S;
 };
+
+export type DiagnosticStorageRequest =
+  | DiagnosticBase<'log', {}>
+  | DiagnosticBase<'echo', {}>;
 
 export type StorageRequest<T = Record<any, any>> =
-  | ItemRequest<T>
-  | RelationshipRequest<T>
-  | OperationalRequest<T>
-  | DiagnosticRequest<T>;
+  | QueryStorageRequest<T>
+  | IndexStorageRequest
+  | RelationshipStorageRequest
+  | OperationalStorageRequest
+  | DiagnosticStorageRequest;
 
-export interface RequestInfo {
-  type: StorageRequestType;
-  operation: StorageOperation;
-  body: <T>(guard: (body: any) => body is T) => T;
-}
-export const parseRequest = async (request: Request): Promise<RequestInfo> => {
+export const parseRequest = async (request: Request): Promise<StorageRequest> => {
   const body = await request.json<StorageRequest>();
-
-  return {
-    type: body.type,
-    operation: body.operation ?? 'unknown',
-    body: <T>(guard: (body: any) => body is T) => {
-      if (guard(body.request)) {
-        return body.request;
-      }
-      throw new StorageBadRequestError(`incorrect parameters provided`);
-    },
-  };
+  return body;
 };
+
+export function enforce<T>(value: T, guard: (v: any) => v is T): asserts value is T {
+  if (!guard(value)) {
+    throw new StorageBadRequestError('incorrect parameters provided');
+  }
+}

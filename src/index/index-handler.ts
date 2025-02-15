@@ -1,6 +1,7 @@
 import { Result } from '@badrap/result';
 
 import {
+  CreateIndexRequest,
   CreateIndexResponse,
   Index,
   isCreateIndexRequest,
@@ -8,8 +9,11 @@ import {
   isRemoveIndexRequest,
   isUpdateIndexRequest,
   ListIndexResponse,
+  ReadIndexRequest,
   ReadIndexResponse,
+  RemoveIndexRequest,
   RemoveIndexResponse,
+  UpdateIndexRequest,
   UpdateIndexResponse,
 } from './index-request';
 import {
@@ -17,7 +21,7 @@ import {
   StorageNotFoundError,
   StorageUnknownOperationError,
 } from '../storage-errors';
-import { RequestInfo } from '../storage-request';
+import { enforce, IndexStorageRequest } from '../storage-request';
 
 export class IndexHandler {
   public indexes: Map<string, Index>;
@@ -27,19 +31,19 @@ export class IndexHandler {
     this.syncIndexes();
   }
 
-  async handle(info: RequestInfo) {
-    switch (info.operation) {
+  async handle(opts: IndexStorageRequest) {
+    switch (opts.operation) {
       case 'create': {
-        return await this.createIndex(info);
+        return await this.createIndex(opts.request);
       }
       case 'update': {
-        return await this.updateIndex(info);
+        return await this.updateIndex(opts.request);
       }
       case 'read': {
-        return await this.readIndex(info);
+        return await this.readIndex(opts.request);
       }
       case 'remove': {
-        return await this.removeIndex(info);
+        return await this.removeIndex(opts.request);
       }
       case 'list': {
         return await this.listIndexes();
@@ -51,9 +55,10 @@ export class IndexHandler {
   }
 
   private async createIndex(
-    info: RequestInfo,
+    input: CreateIndexRequest,
   ): Promise<Result<CreateIndexResponse | StorageError>> {
-    const input = info.body(isCreateIndexRequest);
+    enforce(input, isCreateIndexRequest);
+
     const key = `idx:${input.property}`;
     const value = { ...input, id: key };
 
@@ -65,9 +70,10 @@ export class IndexHandler {
   }
 
   private async updateIndex(
-    info: RequestInfo,
+    input: UpdateIndexRequest,
   ): Promise<Result<UpdateIndexResponse | StorageError>> {
-    const input = info.body(isUpdateIndexRequest);
+    enforce(input, isUpdateIndexRequest);
+
     const value = { ...input, id: `idx:${input.property}` };
 
     await this.state.storage.put(input.id, value);
@@ -78,9 +84,10 @@ export class IndexHandler {
   }
 
   private async readIndex(
-    info: RequestInfo,
+    input: ReadIndexRequest,
   ): Promise<Result<ReadIndexResponse | StorageError>> {
-    const input = info.body(isReadIndexRequest);
+    enforce(input, isReadIndexRequest);
+
     const index = await this.state.storage.get<Index>(input.id, {
       allowConcurrency: true,
     });
@@ -92,9 +99,10 @@ export class IndexHandler {
   }
 
   private async removeIndex(
-    info: RequestInfo,
+    input: RemoveIndexRequest,
   ): Promise<Result<RemoveIndexResponse | StorageError>> {
-    const input = info.body(isRemoveIndexRequest);
+    enforce(input, isRemoveIndexRequest);
+
     const deleted = await this.state.storage.delete(input.id);
 
     this.syncIndexes();

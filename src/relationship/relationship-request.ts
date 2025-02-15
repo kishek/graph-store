@@ -30,19 +30,23 @@ export type ReadRelationshipRequest = {
 };
 export type ReadRelationshipResponse = { exists: boolean };
 
-export type RemoveRelationshipRequest =
-  | {
-      tag?: string;
-      nodeA: string;
-      nodeB: string;
-      nodeAToBRelationshipName: RelationshipName;
-      nodeBToARelationshipName: RelationshipName;
-    }
-  | { node: string; tag?: string };
+export type RemoveRelationshipRequest = {
+  tag?: string;
+  nodeA: string;
+  nodeB: string;
+  nodeAToBRelationshipName: RelationshipName;
+  nodeBToARelationshipName: RelationshipName;
+};
 export type RemoveRelationshipResponse = { success: boolean };
 
-export type RemoveRelationshipBatchRequest = RelationshipRequest[];
+export type RemoveRelationshipBatchRequest = RemoveRelationshipRequest[];
 export type RemoveRelationshipBatchResponse = { success: boolean };
+
+export type RemoveRelationshipNodeRequest = { node: string; tag?: string };
+export type RemoveRelationshipNodeResponse = { success: boolean };
+
+export type RemoveRelationshipBatchNodeRequest = { node: string; tag?: string }[];
+export type RemoveRelationshipBatchNodeResponse = { success: boolean };
 
 export type ListRelationshipRequest = {
   tag?: string;
@@ -109,6 +113,18 @@ export const isRemoveRelationshipBatchRequest = (
   body: any,
 ): body is RemoveRelationshipBatchRequest => {
   return body && Array.isArray(body) && body.every(isRemoveRelationshipRequest);
+};
+
+export const isRemoveRelationshipNodeRequest = (
+  body: any,
+): body is RemoveRelationshipNodeRequest => {
+  return body && typeof body.node === 'string';
+};
+
+export const isRemoveRelationshipNodeBatchRequest = (
+  body: any,
+): body is RemoveRelationshipBatchNodeRequest => {
+  return body && Array.isArray(body) && body.every(isRemoveRelationshipNodeRequest);
 };
 
 export const isListRelationshipRequest = (body: any): body is ListRelationshipRequest => {

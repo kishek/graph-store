@@ -233,7 +233,7 @@ test('reading entity which does not exist yields 404', async () => {
   const response = await client.readQuery<TestEntity>({ key: 'a' });
 
   expect(() => response.unwrap()).toThrowErrorMatchingInlineSnapshot(
-    `[HTTPError: 404: row not found]`,
+    `[Error: row not found]`,
   );
 });
 

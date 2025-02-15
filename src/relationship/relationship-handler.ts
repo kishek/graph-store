@@ -25,6 +25,12 @@ import {
   BatchListRelationshipRequest,
   isBatchListRelationshipRequest,
   BatchListRelationshipResponse,
+  RemoveRelationshipBatchRequest,
+  RemoveRelationshipNodeRequest,
+  RemoveRelationshipNodeResponse,
+  isRemoveRelationshipNodeRequest,
+  RemoveRelationshipBatchNodeRequest,
+  isRemoveRelationshipNodeBatchRequest,
 } from './relationship-request';
 import {
   StorageBadRequestError,
@@ -32,9 +38,9 @@ import {
   StorageNotFoundError,
   StorageUnknownOperationError,
 } from '../storage-errors';
-import { RequestInfo } from '../storage-request';
 import { BatchedStorage } from '../batched-storage';
 import { InMemoryReadCache } from '../cache/read-cache';
+import { enforce, RelationshipStorageRequest } from '../storage-request';
 
 export const hierarchicalRole = {
   parent: 'parent' as RelationshipName,
@@ -64,32 +70,40 @@ export class RelationshipHandler {
     private batcher = new BatchedStorage(state, cache),
   ) {}
 
-  async handle(info: RequestInfo) {
-    switch (info.operation) {
+  async handle(opts: RelationshipStorageRequest) {
+    switch (opts.operation) {
       case 'create': {
         this.cache.deleteAll();
-        return await this.createRelationship(info);
+        return await this.createRelationship(opts.request);
       }
       case 'batchCreate': {
         this.cache.deleteAll();
-        return await this.createRelationshipBatch(info);
+        return await this.createRelationshipBatch(opts.request);
       }
       case 'read': {
-        return await this.hasRelationship(info);
+        return await this.hasRelationship(opts.request);
       }
       case 'remove': {
         this.cache.deleteAll();
-        return await this.removeRelationship(info);
+        return await this.removeRelationship(opts.request);
       }
       case 'batchRemove': {
         this.cache.deleteAll();
-        return await this.removeRelationshipBatch(info);
+        return await this.removeRelationshipBatch(opts.request);
+      }
+      case 'removeNode': {
+        this.cache.deleteAll();
+        return await this.removeRelationshipNode(opts.request);
+      }
+      case 'batchRemoveNode': {
+        this.cache.deleteAll();
+        return await this.removeRelationshipNodeBatch(opts.request);
       }
       case 'list': {
-        return await this.listRelationship(info);
+        return await this.listRelationship(opts.request);
       }
       case 'batchList': {
-        return await this.batchListRelationships(info);
+        return await this.batchListRelationships(opts.request);
       }
       case 'purge': {
         this.cache.deleteAll();
@@ -102,9 +116,10 @@ export class RelationshipHandler {
   }
 
   private async createRelationship(
-    info: RequestInfo,
+    input: CreateRelationshipRequest,
   ): Promise<Result<CreateRelationshipResponse, StorageError>> {
-    const input = info.body<CreateRelationshipRequest>(isCreateRelationshipRequest);
+    enforce(input, isCreateRelationshipRequest);
+
     const nodeAId = id(input.nodeAToBRelationshipName, input.nodeA);
     const nodeBId = id(input.nodeBToARelationshipName, input.nodeB);
 
@@ -122,11 +137,9 @@ export class RelationshipHandler {
   }
 
   private async createRelationshipBatch(
-    info: RequestInfo,
+    input: CreateRelationshipBatchRequest,
   ): Promise<Result<CreateRelationshipBatchResponse, StorageError>> {
-    const input = info.body<CreateRelationshipBatchRequest>(
-      isCreateRelationshipBatchRequest,
-    );
+    enforce(input, isCreateRelationshipBatchRequest);
 
     const { relationsRight, relationsLeft } = this.parseBatchRequest(input);
 
@@ -212,9 +225,9 @@ export class RelationshipHandler {
   }
 
   private async hasRelationship(
-    info: RequestInfo,
+    input: ReadRelationshipRequest,
   ): Promise<Result<ReadRelationshipResponse, StorageError>> {
-    const input = info.body<ReadRelationshipRequest>(isReadRelationshipRequest);
+    enforce(input, isReadRelationshipRequest);
 
     const relationshipId = id(input.name, input.nodeA);
     const relationships = await this.state.storage.get<RelationshipData>(relationshipId, {
@@ -228,14 +241,9 @@ export class RelationshipHandler {
   }
 
   private async removeRelationship(
-    info: RequestInfo,
+    input: RemoveRelationshipRequest,
   ): Promise<Result<RemoveRelationshipResponse, StorageError>> {
-    const input = info.body<RemoveRelationshipRequest>(isRemoveRelationshipRequest);
-
-    if ('node' in input) {
-      await this.clearAllRelationshipsForNode(input.node);
-      return Result.ok({ success: true });
-    }
+    enforce(input, isRemoveRelationshipRequest);
 
     const nodeAId = id(input.nodeAToBRelationshipName, input.nodeA);
     const nodeBId = id(input.nodeBToARelationshipName, input.nodeB);
@@ -252,51 +260,10 @@ export class RelationshipHandler {
     }
   }
 
-  private async clearAllRelationshipsForNode(node: string) {
-    await this.state.storage.transaction(async (transaction) => {
-      const relationsRight = await transaction.list<RelationshipData>({
-        prefix: prefix(node),
-      });
-
-      const relationsRightIds = Array.from(relationsRight.keys());
-      const relationsLeftIds: RelationshipTuple[] = [];
-
-      const relationsNamesIds = relationsRightIds.map((id) =>
-        mappingId(id.split('$')[2] as RelationshipName),
-      );
-      const relationsNamesMapping = await transaction.get<RelationshipName>(
-        relationsNamesIds,
-      );
-
-      for (const [source, targets] of Array.from(relationsRight.entries())) {
-        for (const target of targets) {
-          const [, , relationshipName] = source.split('$');
-
-          const relationName = relationshipName as RelationshipName;
-          const relationsReverseName = relationsNamesMapping.get(mappingId(relationName));
-
-          if (!relationsReverseName) {
-            continue;
-          }
-
-          relationsLeftIds.push([id(relationsReverseName, target), node]);
-        }
-      }
-
-      // `a` is being deleted below:
-      // - Delete all relations which go from a -> b
-      // - Update all relations which go from a <- b
-      await Promise.all([
-        transaction.delete(relationsRightIds),
-        this.deleteRelationshipBatch(relationsLeftIds),
-      ]);
-    });
-  }
-
   private async removeRelationshipBatch(
-    info: RequestInfo,
+    input: RemoveRelationshipBatchRequest,
   ): Promise<Result<RemoveRelationshipBatchResponse, StorageError>> {
-    const input = info.body(isRemoveRelationshipBatchRequest);
+    enforce(input, isRemoveRelationshipBatchRequest);
 
     const { relationsRight, relationsLeft } = this.parseBatchRequest(input);
 
@@ -304,6 +271,32 @@ export class RelationshipHandler {
     await this.deleteRelationshipBatch(relationsLeft);
 
     return Result.ok({ success: true });
+  }
+
+  private async removeRelationshipNode(
+    input: RemoveRelationshipNodeRequest,
+  ): Promise<Result<RemoveRelationshipNodeResponse, StorageError>> {
+    enforce(input, isRemoveRelationshipNodeRequest);
+
+    try {
+      await this.clearAllRelationshipsForNode(input.node);
+      return Result.ok({ success: true });
+    } catch (err) {
+      return Result.ok({ success: false });
+    }
+  }
+
+  private async removeRelationshipNodeBatch(
+    input: RemoveRelationshipBatchNodeRequest,
+  ): Promise<Result<RemoveRelationshipBatchResponse, StorageError>> {
+    enforce(input, isRemoveRelationshipNodeBatchRequest);
+
+    try {
+      await Promise.all(input.map((r) => this.clearAllRelationshipsForNode(r.node)));
+      return Result.ok({ success: true });
+    } catch (err) {
+      return Result.ok({ success: false });
+    }
   }
 
   private parseBatchRequest(input: RelationshipRequest[]) {
@@ -321,11 +314,11 @@ export class RelationshipHandler {
   }
 
   private async listRelationship(
-    info: RequestInfo,
+    input: ListRelationshipRequest,
   ): Promise<Result<ListRelationshipResponse, StorageError>> {
-    const { name, node, first, last, after, before } = info.body<ListRelationshipRequest>(
-      isListRelationshipRequest,
-    );
+    enforce(input, isListRelationshipRequest);
+
+    const { name, node, first, last, after, before } = input;
 
     const relationshipId = id(name, node);
     const relationships =
@@ -337,14 +330,12 @@ export class RelationshipHandler {
   }
 
   private async batchListRelationships(
-    info: RequestInfo,
+    input: BatchListRelationshipRequest,
   ): Promise<Result<BatchListRelationshipResponse, StorageError>> {
-    const { requests } = info.body<BatchListRelationshipRequest>(
-      isBatchListRelationshipRequest,
-    );
+    enforce(input, isBatchListRelationshipRequest);
 
     const results = await this.batcher.doChunkedRead<RelationshipData>(
-      requests.map(({ name, node }) => id(name, node)),
+      input.requests.map(({ name, node }) => id(name, node)),
     );
 
     const relationships: ListRelationshipResponse[] = [];
@@ -352,7 +343,7 @@ export class RelationshipHandler {
     let idx = 0;
 
     for (const [, relationshipData] of results) {
-      const { first, before, last, after } = requests[idx];
+      const { first, before, last, after } = input.requests[idx];
 
       if (!relationshipData || relationshipData.size === 0) {
         relationships.push({ relationships: [], hasBefore: false, hasAfter: false });
@@ -432,5 +423,46 @@ export class RelationshipHandler {
     }
 
     return idx + increment;
+  }
+
+  private async clearAllRelationshipsForNode(node: string) {
+    await this.state.storage.transaction(async (transaction) => {
+      const relationsRight = await transaction.list<RelationshipData>({
+        prefix: prefix(node),
+      });
+
+      const relationsRightIds = Array.from(relationsRight.keys());
+      const relationsLeftIds: RelationshipTuple[] = [];
+
+      const relationsNamesIds = relationsRightIds.map((id) =>
+        mappingId(id.split('$')[2] as RelationshipName),
+      );
+      const relationsNamesMapping = await transaction.get<RelationshipName>(
+        relationsNamesIds,
+      );
+
+      for (const [source, targets] of Array.from(relationsRight.entries())) {
+        for (const target of targets) {
+          const [, , relationshipName] = source.split('$');
+
+          const relationName = relationshipName as RelationshipName;
+          const relationsReverseName = relationsNamesMapping.get(mappingId(relationName));
+
+          if (!relationsReverseName) {
+            continue;
+          }
+
+          relationsLeftIds.push([id(relationsReverseName, target), node]);
+        }
+      }
+
+      // `a` is being deleted below:
+      // - Delete all relations which go from a -> b
+      // - Update all relations which go from a <- b
+      await Promise.all([
+        transaction.delete(relationsRightIds),
+        this.deleteRelationshipBatch(relationsLeftIds),
+      ]);
+    });
   }
 }

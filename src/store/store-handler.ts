@@ -1,10 +1,10 @@
 import { Result } from '@badrap/result';
 import { StorageNotFoundError, StorageUnknownOperationError } from '../storage-errors';
-import { RequestInfo } from '../storage-request';
 import { StorageEnvironment } from 'src/storage-environment';
-import { isRestoreRequest } from './store-request';
+import { isRestoreRequest, RestoreRequest } from './store-request';
 import { BatchedStorage } from '../batched-storage';
 import { InMemoryReadCache } from '../cache/read-cache';
+import { enforce, OperationalStorageRequest } from '../storage-request';
 
 export class StoreHandler {
   constructor(
@@ -14,13 +14,13 @@ export class StoreHandler {
     private batcher = new BatchedStorage(state, cache),
   ) {}
 
-  async handle(info: RequestInfo) {
-    switch (info.operation) {
+  async handle(opts: OperationalStorageRequest) {
+    switch (opts.operation) {
       case 'backup': {
         return await this.backup();
       }
       case 'restore': {
-        return await this.restore(info);
+        return await this.restore(opts.request);
       }
       default: {
         return Result.err(new StorageUnknownOperationError());
@@ -49,8 +49,8 @@ export class StoreHandler {
     return Result.ok(name);
   }
 
-  private async restore(info: RequestInfo) {
-    const input = info.body(isRestoreRequest);
+  private async restore(input: RestoreRequest) {
+    enforce(input, isRestoreRequest);
 
     const backup = await this.env.GRAPH_STORAGE_BACKUP.get(input.backupId);
     if (!backup) {

@@ -1,12 +1,12 @@
 import { Result } from '@badrap/result';
 import { StorageUnknownOperationError } from '../storage-errors';
-import { RequestInfo } from '../storage-request';
+import { DiagnosticStorageRequest } from '../storage-request';
 
 export class DiagnosticsHandler {
   constructor(private state: DurableObjectState) {}
 
-  async handle(info: RequestInfo) {
-    switch (info.operation) {
+  async handle(opts: DiagnosticStorageRequest) {
+    switch (opts.operation) {
       case 'log': {
         return await this.log();
       }

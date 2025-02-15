@@ -1,4 +1,5 @@
 import { Result } from '@badrap/result';
+import { DurableObject } from 'cloudflare:workers';
 
 import { IndexHandler } from './index/index-handler';
 import { QueryHandler } from './query/query-handler';
@@ -12,14 +13,18 @@ import {
   StorageClientMetadata,
   StorageMiddleware,
 } from './storage-client';
-import { StorageError } from './storage-errors';
-import { parseRequest } from './storage-request';
+import { StorageError, StorageUnexpectedError } from './storage-errors';
+import { parseRequest, StorageRequest } from './storage-request';
 import { StorageEnvironment } from './storage-environment';
 import { StoreHandler } from './store/store-handler';
 import { DiagnosticsHandler } from './diagnostics/diagnostic-handler';
 import { InMemoryReadCache } from './cache/read-cache';
 
-export class Storage {
+export type StorageResult<T> =
+  | { type: 'error'; error: StorageError }
+  | { type: 'success'; value: T };
+
+export class Storage extends DurableObject {
   private queryHandler: QueryHandler;
   private indexHandler: IndexHandler;
   private relationshipHandler: RelationshipHandler;
@@ -28,62 +33,80 @@ export class Storage {
 
   private cache: InMemoryReadCache = new InMemoryReadCache();
 
-  constructor(state: DurableObjectState, env: StorageEnvironment) {
-    this.relationshipHandler = new RelationshipHandler(state, this.cache);
-    this.indexHandler = new IndexHandler(state);
+  constructor(ctx: DurableObjectState, env: StorageEnvironment) {
+    super(ctx, env);
+    this.relationshipHandler = new RelationshipHandler(ctx, this.cache);
+    this.indexHandler = new IndexHandler(ctx);
     this.queryHandler = new QueryHandler(
-      state,
+      ctx,
       this.indexHandler,
       this.relationshipHandler,
       this.cache,
     );
-    this.storeHandler = new StoreHandler(state, env, this.cache);
-    this.diagnosticHandler = new DiagnosticsHandler(state);
+    this.storeHandler = new StoreHandler(ctx, env, this.cache);
+    this.diagnosticHandler = new DiagnosticsHandler(ctx);
   }
 
   async fetch(request: Request) {
     try {
       const info = await parseRequest(request);
+      const result = await this.handle(info);
+
+      if (result.type === 'success') {
+        return this.toResponse(result.value);
+      } else {
+        return this.toResponseError(result.error);
+      }
+    } catch (err) {
+      return this.toResponseError(err);
+    }
+  }
+
+  async handle<T extends Record<any, any> = Record<any, any>>(
+    request: StorageRequest,
+  ): Promise<StorageResult<T>> {
+    try {
       let result: Result<unknown | StorageError>;
 
-      switch (info.type) {
+      switch (request.type) {
         case 'query': {
-          result = await this.queryHandler.handle(info);
+          result = await this.queryHandler.handle(request);
           break;
         }
         case 'index': {
-          result = await this.indexHandler.handle(info);
+          result = await this.indexHandler.handle(request);
           break;
         }
         case 'relationship': {
-          result = await this.relationshipHandler.handle(info);
+          result = await this.relationshipHandler.handle(request);
           break;
         }
         case 'store': {
-          result = await this.storeHandler.handle(info);
+          result = await this.storeHandler.handle(request);
           break;
         }
         case 'diagnostic': {
-          result = await this.diagnosticHandler.handle(info);
+          result = await this.diagnosticHandler.handle(request);
           break;
         }
       }
 
       if (result.isOk) {
-        return this.mapResponse(result.value);
+        return { type: 'success', value: result.value as T };
       } else {
-        return this.mapError(result.error);
+        return { type: 'error', error: result.error };
       }
     } catch (err) {
-      return this.mapError(err);
+      const error = err instanceof Error ? err : new Error(String(err));
+      return { type: 'error', error: new StorageUnexpectedError(error.message) };
     }
   }
 
-  mapResponse(value: unknown) {
+  toResponse(value: unknown) {
     return new Response(JSON.stringify(value), { status: 200 });
   }
 
-  mapError(error: Error | unknown) {
+  toResponseError(error: Error | unknown) {
     if (error instanceof Error) {
       const reason = JSON.stringify({ reason: error.message });
 

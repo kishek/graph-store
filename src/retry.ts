@@ -3,6 +3,7 @@ export type RetryOpts<T> = {
   delay?: number;
   factor?: number;
   shouldRetryOnSuccess?: (response: T) => boolean;
+  shoudlRetryOnFailure?: (error: unknown | Error) => boolean;
 };
 
 export class RetryError extends Error {
@@ -21,6 +22,8 @@ export class RetryExhaustedError extends RetryError {
 
 // by default, we return all successful responses
 const continueOnSuccess = () => false;
+// by default, we retry on all failures
+const retryOnFailure = () => true;
 
 export const retry = <T>(tag: string, cb: () => Promise<T>, opts: RetryOpts<T> = {}) => {
   const {
@@ -28,6 +31,7 @@ export const retry = <T>(tag: string, cb: () => Promise<T>, opts: RetryOpts<T> =
     delay = 100,
     factor = 2,
     shouldRetryOnSuccess = continueOnSuccess,
+    shoudlRetryOnFailure = retryOnFailure,
   } = opts;
   let retryCount = 0;
 
@@ -40,7 +44,7 @@ export const retry = <T>(tag: string, cb: () => Promise<T>, opts: RetryOpts<T> =
 
       return response;
     } catch (err) {
-      if (retryCount >= maxRetries) {
+      if (retryCount >= maxRetries && shoudlRetryOnFailure(err)) {
         console.error(`${tag}: retries exhausted`, { err });
         throw new RetryExhaustedError(`${tag}: retries exhausted`);
       }

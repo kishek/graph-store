@@ -1,6 +1,6 @@
 name = "worker-storage"
 main = './index.ts'
-compatibility_date = "2022-10-31"
+compatibility_date = "2024-04-03"
 compatibility_flags = ["nodejs_compat", "nodejs_compat_v2"]
 
 [durable_objects]

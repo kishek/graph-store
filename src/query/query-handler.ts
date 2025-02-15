@@ -27,6 +27,11 @@ import {
   isBatchUpsertQueryRequest,
   BatchRemoveQueryResponse,
   isBatchRemoveQueryRequest,
+  ReadQueryRequest,
+  BatchReadQueryRequest,
+  RemoveQueryRequest,
+  BatchRemoveQueryRequest,
+  ListQueryRequest,
 } from './query-request';
 import { IndexHandler } from '../index/index-handler';
 import { RelationshipHandler } from '../relationship/relationship-handler';
@@ -36,9 +41,10 @@ import {
   StorageNotFoundError,
   StorageUnknownOperationError,
 } from '../storage-errors';
-import { RequestInfo } from '../storage-request';
 import { BatchedStorage } from '../batched-storage';
 import { InMemoryReadCache } from '../cache/read-cache';
+import { enforce, QueryStorageRequest } from '../storage-request';
+import { RelationshipRequest } from '../storage';
 
 export class QueryHandler {
   constructor(
@@ -49,44 +55,44 @@ export class QueryHandler {
     private batcher = new BatchedStorage(state, cache),
   ) {}
 
-  async handle<T extends { id?: string }>(info: RequestInfo) {
-    switch (info.operation) {
+  async handle<T extends { id?: string }>(opts: QueryStorageRequest<T>) {
+    switch (opts.operation) {
       case 'create': {
         this.cache.deleteAll();
-        return await this.createQuery<T>(info);
+        return await this.createQuery<T>(opts.request);
       }
       case 'batchCreate': {
         this.cache.deleteAll();
-        return await this.batchCreateQuery<T>(info);
+        return await this.batchCreateQuery<T>(opts.request);
       }
       case 'read': {
-        return await this.readQuery<T>(info);
+        return await this.readQuery<T>(opts.request);
       }
       case 'batchRead': {
-        return await this.batchReadQuery<T>(info);
+        return await this.batchReadQuery<T>(opts.request);
       }
       case 'update': {
         this.cache.deleteAll();
-        return await this.updateQuery<T>(info);
+        return await this.updateQuery<T>(opts.request);
       }
       case 'batchUpdate': {
         this.cache.deleteAll();
-        return await this.batchUpdateQuery<T>(info);
+        return await this.batchUpdateQuery<T>(opts.request);
       }
       case 'batchUpsert': {
         this.cache.deleteAll();
-        return await this.batchUpsertQuery<T>(info);
+        return await this.batchUpsertQuery<T>(opts.request);
       }
       case 'remove': {
         this.cache.deleteAll();
-        return await this.removeQuery(info);
+        return await this.removeQuery(opts.request);
       }
       case 'batchRemove': {
         this.cache.deleteAll();
-        return await this.batchRemoveQuery(info);
+        return await this.batchRemoveQuery(opts.request);
       }
       case 'list': {
-        return await this.listQuery<T>(info);
+        return await this.listQuery<T>(opts.request);
       }
       case 'purge': {
         this.cache.deleteAll();
@@ -99,9 +105,10 @@ export class QueryHandler {
   }
 
   private async createQuery<T extends { id?: string }>(
-    info: RequestInfo,
+    input: CreateQueryRequest<T>,
   ): Promise<Result<CreateQueryResponse<T>, StorageError>> {
-    const input = info.body<CreateQueryRequest<T>>(isCreateQueryRequest);
+    enforce(input, isCreateQueryRequest);
+
     const value = { ...input.value, id: input.value.id ?? input.key };
     const items = this.indexHandler.enhanceWritePayload(input.key, value);
 
@@ -113,19 +120,19 @@ export class QueryHandler {
   }
 
   private async batchCreateQuery<T extends { id?: string }>(
-    info: RequestInfo,
+    input: BatchCreateQueryRequest<T>,
   ): Promise<Result<BatchCreateQueryResponse<T>, StorageError>> {
-    const query = info.body<BatchCreateQueryRequest<T>>(isBatchCreateQueryRequest);
+    enforce(input, isBatchCreateQueryRequest);
 
     const entries: Record<string, T & { id: string }> = {};
 
-    const keysFromInput = new Set(Object.keys(query.entries));
+    const keysFromInput = new Set(Object.keys(input.entries));
     const entriesFromInputKeys: Record<string, T & { id: string }> = {};
 
     for (const inputKey of keysFromInput) {
       const rows = this.indexHandler.enhanceWritePayload(
         inputKey,
-        query.entries[inputKey],
+        input.entries[inputKey],
       );
       for (const row of rows) {
         const id = row[0];
@@ -146,12 +153,13 @@ export class QueryHandler {
   }
 
   private async readQuery<T>(
-    info: RequestInfo,
+    input: ReadQueryRequest,
   ): Promise<Result<ReadQueryResponse<T>, StorageError>> {
-    const query = info.body(isReadQueryRequest);
-    const key = this.keyFromQuery(query.key, query.index);
+    enforce(input, isReadQueryRequest);
 
+    const key = this.keyFromQuery(input.key, input.index);
     const cached = this.cache.get<ReadQueryResponse<T>>(key);
+
     if (cached) {
       return Result.ok(cached);
     }
@@ -168,12 +176,12 @@ export class QueryHandler {
   }
 
   private async batchReadQuery<T>(
-    info: RequestInfo,
+    input: BatchReadQueryRequest,
   ): Promise<Result<BatchReadQueryResponse<T>, StorageError>> {
-    const query = info.body(isBatchReadQueryRequest);
+    enforce(input, isBatchReadQueryRequest);
 
-    const inputKeys = query.keys;
-    const keys = inputKeys.map((k) => this.keyFromQuery(k, query.index));
+    const inputKeys = input.keys;
+    const keys = inputKeys.map((k) => this.keyFromQuery(k, input.index));
 
     const items = await this.batcher.doChunkedRead<ReadQueryResponse<T> | undefined>(
       keys,
@@ -183,11 +191,12 @@ export class QueryHandler {
   }
 
   private async updateQuery<T>(
-    info: RequestInfo,
+    input: UpdateQueryRequest<T>,
   ): Promise<Result<UpdateQueryResponse<T>, StorageError>> {
-    const query = info.body<UpdateQueryRequest<T>>(isUpdateQueryRequest);
-    const key = query.key;
-    const nextValue = query.value;
+    enforce(input, isUpdateQueryRequest);
+
+    const key = input.key;
+    const nextValue = input.value;
 
     const currentValue = await this.state.storage.get<UpdateQueryResponse<T>>(key);
     if (!currentValue) {
@@ -208,28 +217,28 @@ export class QueryHandler {
   }
 
   private async batchUpdateQuery<T>(
-    info: RequestInfo,
+    input: BatchUpdateQueryRequest<T>,
   ): Promise<Result<BatchUpdateQueryResponse<T>, StorageError>> {
-    const query = info.body<BatchUpdateQueryRequest<T>>(isBatchUpdateQueryRequest);
+    enforce(input, isBatchUpdateQueryRequest);
 
-    return this.doBatchUpdate<T>(query.entries, true);
+    return this.doBatchUpdate<T>(input.entries, true);
   }
 
   private async batchUpsertQuery<T>(
-    info: RequestInfo,
+    input: BatchUpsertQueryRequest<T>,
   ): Promise<Result<BatchUpsertQueryResponse<T>, StorageError>> {
-    const query = info.body<BatchUpsertQueryRequest<T>>(isBatchUpsertQueryRequest);
+    enforce(input, isBatchUpsertQueryRequest);
 
-    return this.doBatchUpdate<T>(query.entries, false);
+    return this.doBatchUpdate<T>(input.entries, false);
   }
 
   private async removeQuery(
-    info: RequestInfo,
+    input: RemoveQueryRequest,
   ): Promise<Result<RemoveQueryResponse, StorageError>> {
-    const { key } = info.body(isRemoveQueryRequest);
+    enforce(input, isRemoveQueryRequest);
 
-    const keys: string[] = [key];
-    this.indexHandler.enhanceDeletePayload(key, keys);
+    const keys: string[] = [input.key];
+    this.indexHandler.enhanceDeletePayload(input.key, keys);
 
     const deleted = await this.state.storage.delete(keys);
     if (deleted === 0) {
@@ -239,20 +248,20 @@ export class QueryHandler {
     // When deleting an entity, delete all relationships too.
     await this.relationshipHandler.handle({
       type: 'relationship',
-      operation: 'remove',
-      body: <T>() => ({ node: key } as T),
+      operation: 'removeNode',
+      request: { node: input.key },
     });
 
     return Result.ok({ success: true });
   }
 
   private async batchRemoveQuery(
-    info: RequestInfo,
+    input: BatchRemoveQueryRequest,
   ): Promise<Result<BatchRemoveQueryResponse, StorageError>> {
-    const { keys: inputKeys } = info.body(isBatchRemoveQueryRequest);
+    enforce(input, isBatchRemoveQueryRequest);
 
-    const keys: string[] = [...inputKeys];
-    for (const inputKey of inputKeys) {
+    const keys: string[] = [...input.keys];
+    for (const inputKey of input.keys) {
       this.indexHandler.enhanceDeletePayload(inputKey, keys);
     }
 
@@ -261,22 +270,23 @@ export class QueryHandler {
     // When deleting an entity, delete all relationships too.
     await this.relationshipHandler.handle({
       type: 'relationship',
-      operation: 'batchRemove',
-      body: <T>() => inputKeys.map((key) => ({ node: key })) as T,
+      operation: 'batchRemoveNode',
+      request: input.keys.map((key) => ({ node: key })),
     });
 
     return Result.ok({ success: true });
   }
 
   private async listQuery<T>(
-    info: RequestInfo,
+    input: ListQueryRequest,
   ): Promise<Result<ListQueryResponse<T>, StorageError>> {
-    const query = info.body(isListQueryRequest);
-    const prefix = this.keyFromQuery(query.key, query.index);
+    enforce(input, isListQueryRequest);
+
+    const prefix = this.keyFromQuery(input.key, input.index);
 
     const cached = this.cache.get<ListQueryResponse<T>>(prefix);
     if (cached) {
-      console.log({ cache: 'hit' });
+      console.log({ cache: 'hit', prefix });
       return Result.ok(cached);
     }
 
