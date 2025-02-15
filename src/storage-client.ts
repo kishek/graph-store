@@ -378,7 +378,7 @@ export class StorageClient {
       return result;
     }
 
-    return await this.doOperationV2(request);
+    return await this.doOperation(request);
   }
 
   private async executeV2<T>(
