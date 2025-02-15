@@ -348,10 +348,10 @@ export class StorageClient {
   }
 
   private async execute<T>(opts: StorageRequest<any>): Promise<Result<T, StorageError>> {
-    if (this.meta.version === 1) {
-      return this.executeV1<T>(opts);
-    } else {
+    if (this.meta.version === 2) {
       return this.executeV2<T>(opts);
+    } else {
+      return this.executeV1<T>(opts);
     }
   }
 
