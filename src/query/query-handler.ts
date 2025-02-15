@@ -32,10 +32,12 @@ import {
   RemoveQueryRequest,
   BatchRemoveQueryRequest,
   ListQueryRequest,
+  ListQueryRange,
 } from './query-request';
 import { IndexHandler } from '../index/index-handler';
 import { RelationshipHandler } from '../relationship/relationship-handler';
 import {
+  StorageBadRequestError,
   StorageDeleteFailedError,
   StorageError,
   StorageNotFoundError,
@@ -44,7 +46,6 @@ import {
 import { BatchedStorage } from '../batched-storage';
 import { InMemoryReadCache } from '../cache/read-cache';
 import { enforce, QueryStorageRequest } from '../storage-request';
-import { RelationshipRequest } from '../storage';
 
 export class QueryHandler {
   constructor(
@@ -278,22 +279,16 @@ export class QueryHandler {
   }
 
   private async listQuery<T>(
-    input: ListQueryRequest,
+    input: ListQueryRequest<T>,
   ): Promise<Result<ListQueryResponse<T>, StorageError>> {
     enforce(input, isListQueryRequest);
 
     const prefix = this.keyFromQuery(input.key, input.index);
+    const { first, last, before, after, query } = input;
 
-    const cached = this.cache.get<ListQueryResponse<T>>(prefix);
-    if (cached) {
-      console.log({ cache: 'hit', prefix });
-      return Result.ok(cached);
-    }
-
-    const items = await this.state.storage.list<QueryResponse<T>>({
-      prefix,
-      allowConcurrency: true,
-    });
+    const items = query
+      ? await this.getQueryItems<T>(prefix, query)
+      : await this.getPaginatedItems<T>(first, before, last, after, prefix);
 
     const response = new Map<string, QueryResponse<T>>();
     items.forEach((value) => response.set(value.id, value));
@@ -302,6 +297,95 @@ export class QueryHandler {
 
     this.cache.set(prefix, entries);
     return Result.ok(entries);
+  }
+
+  private async getQueryItems<T>(prefix: string, query: ListQueryRange<T>) {
+    const items = await this.state.storage.list<QueryResponse<T>>({
+      prefix,
+      allowConcurrency: true,
+    });
+
+    const result = new Map<string, QueryResponse<T>>();
+
+    for (const [key, value] of items.entries()) {
+      const v = value[query.property as keyof T];
+      if (!v || !(v >= query.min && v <= query.max)) {
+        continue;
+      }
+
+      result.set(key, value);
+    }
+
+    return result;
+  }
+
+  private async getPaginatedItems<T>(
+    first: number | undefined,
+    before: string | undefined,
+    last: number | undefined,
+    after: string | undefined,
+    prefix: string,
+  ) {
+    if (first && before) {
+      throw new StorageBadRequestError('cannot supply `first` and `before` together');
+    }
+    if (last && after) {
+      throw new StorageBadRequestError('cannot supply `last` and `after` together');
+    }
+    if (first && last) {
+      throw new StorageBadRequestError('cannot supply `first` and `last` together');
+    }
+
+    if (before && after) {
+      return await this.state.storage.list<QueryResponse<T>>({
+        prefix,
+        startAfter: after,
+        end: before,
+        allowConcurrency: true,
+      });
+    }
+
+    if (before) {
+      return await this.state.storage.list<QueryResponse<T>>({
+        prefix,
+        end: before,
+        allowConcurrency: true,
+        limit: last ?? 100,
+        reverse: true,
+      });
+    }
+
+    if (after) {
+      return await this.state.storage.list<QueryResponse<T>>({
+        prefix,
+        startAfter: after,
+        allowConcurrency: true,
+        limit: first ?? 100,
+      });
+    }
+
+    if (first) {
+      return await this.state.storage.list<QueryResponse<T>>({
+        prefix,
+        limit: first,
+        allowConcurrency: true,
+      });
+    }
+
+    if (last) {
+      return await this.state.storage.list<QueryResponse<T>>({
+        prefix,
+        limit: last,
+        allowConcurrency: true,
+        reverse: true,
+      });
+    }
+
+    const items = await this.state.storage.list<QueryResponse<T>>({
+      prefix,
+      allowConcurrency: true,
+    });
+    return items;
   }
 
   private async purgeAllQuery(): Promise<Result<boolean, StorageError>> {

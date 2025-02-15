@@ -59,7 +59,14 @@ export type BatchRemoveQueryRequest = {
 };
 export type BatchRemoveQueryResponse = { success: boolean };
 
-export type ListQueryRequest = Partial<Pick<QueryRequest, 'key' | 'index' | 'tag'>>;
+export type ListQueryRange<T> = { type: 'range'; min: any; max: any; property: keyof T };
+export type ListQueryRequest<T> = Partial<Pick<QueryRequest, 'key' | 'index' | 'tag'>> & {
+  first?: number;
+  last?: number;
+  before?: string;
+  after?: string;
+  query?: ListQueryRange<T>;
+};
 export type ListQueryResponse<T> = Record<string, QueryResponse<T>>;
 
 export const isCreateQueryRequest = <T>(body: any): body is CreateQueryRequest<T> => {
@@ -95,6 +102,6 @@ export const isRemoveQueryRequest = (body: any): body is RemoveQueryRequest => {
 export const isBatchRemoveQueryRequest = (body: any): body is BatchRemoveQueryRequest => {
   return body && Array.isArray(body.keys);
 };
-export const isListQueryRequest = (body: any): body is ListQueryRequest => {
+export const isListQueryRequest = <T>(body: any): body is ListQueryRequest<T> => {
   return !!body;
 };

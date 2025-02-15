@@ -48,7 +48,7 @@ export type QueryStorageRequest<T = Record<any, any>> =
   | QueryBase<'batchUpsert', BatchUpsertQueryRequest<T>>
   | QueryBase<'remove', RemoveQueryRequest>
   | QueryBase<'batchRemove', BatchRemoveQueryRequest>
-  | QueryBase<'list', ListQueryRequest>
+  | QueryBase<'list', ListQueryRequest<T>>
   | QueryBase<'purge', {}>;
 
 type IndexBase<T, S> = {

@@ -223,7 +223,7 @@ export class StorageClient {
     });
   }
 
-  public listQuery<T>(opts: ListQueryRequest) {
+  public listQuery<T>(opts: ListQueryRequest<T>) {
     return this.execute<ListQueryResponse<T>>({
       type: 'query',
       operation: 'list',

@@ -233,7 +233,7 @@ test('reading entity which does not exist yields 404', async () => {
   const response = await client.readQuery<TestEntity>({ key: 'a' });
 
   expect(() => response.unwrap()).toThrowErrorMatchingInlineSnapshot(
-    `[Error: row not found]`,
+    `[HTTPError: 404: row not found]`,
   );
 });
 
@@ -1297,4 +1297,275 @@ test('is able to apply middleware', async () => {
     createdBy: 'test-user',
     updatedBy: 'test-user-updated',
   });
+});
+
+test('able to list first N entities in list operation', async () => {
+  const client = getStorageClient();
+
+  await client.batchCreateQuery<TestEntity>({
+    entries: {
+      'entity-a': {
+        a: 1,
+        b: 2,
+        c: 3,
+      },
+      'entity-b': {
+        a: 4,
+        b: 5,
+        c: 6,
+      },
+    },
+  });
+
+  const items = await client.listQuery<TestEntity>({ key: 'entity', first: 1 });
+  const result = items.unwrap();
+
+  expect(Object.keys(result)).toHaveLength(1);
+  expect(result).toMatchObject({
+    'entity-a': {
+      a: 1,
+      b: 2,
+      c: 3,
+    },
+  });
+});
+
+test('able to list last N entities in list operation', async () => {
+  const client = getStorageClient();
+
+  await client.batchCreateQuery<TestEntity>({
+    entries: {
+      'entity-a': {
+        a: 1,
+        b: 2,
+        c: 3,
+      },
+      'entity-b': {
+        a: 4,
+        b: 5,
+        c: 6,
+      },
+    },
+  });
+
+  const items = await client.listQuery<TestEntity>({ key: 'entity', last: 1 });
+  const result = items.unwrap();
+
+  expect(Object.keys(result)).toHaveLength(1);
+  expect(result).toMatchObject({
+    'entity-b': {
+      a: 4,
+      b: 5,
+      c: 6,
+    },
+  });
+});
+
+test('able to list last N entities in list operation', async () => {
+  const client = getStorageClient();
+
+  await client.batchCreateQuery<TestEntity>({
+    entries: {
+      'entity-a': {
+        a: 1,
+        b: 2,
+        c: 3,
+      },
+      'entity-b': {
+        a: 4,
+        b: 5,
+        c: 6,
+      },
+    },
+  });
+
+  const items = await client.listQuery<TestEntity>({ key: 'entity', last: 1 });
+  const result = items.unwrap();
+
+  expect(Object.keys(result)).toHaveLength(1);
+  expect(result).toMatchObject({
+    'entity-b': {
+      a: 4,
+      b: 5,
+      c: 6,
+    },
+  });
+});
+
+test('able to list entities after a specific entity', async () => {
+  const client = getStorageClient();
+
+  const created = await client.batchCreateQuery<TestEntity>({
+    entries: {
+      'entity-a': {
+        a: 1,
+        b: 2,
+        c: 3,
+      },
+      'entity-b': {
+        a: 4,
+        b: 5,
+        c: 6,
+      },
+    },
+  });
+  const cursor = created.unwrap()[0].id;
+
+  const items = await client.listQuery<TestEntity>({ key: 'entity', after: cursor });
+  const result = items.unwrap();
+
+  expect(Object.keys(result)).toHaveLength(1);
+  expect(result).toMatchObject({
+    'entity-b': {
+      a: 4,
+      b: 5,
+      c: 6,
+    },
+  });
+});
+
+test('able to list entities before a specific entity', async () => {
+  const client = getStorageClient();
+
+  const created = await client.batchCreateQuery<TestEntity>({
+    entries: {
+      'entity-a': {
+        a: 1,
+        b: 2,
+        c: 3,
+      },
+      'entity-b': {
+        a: 4,
+        b: 5,
+        c: 6,
+      },
+    },
+  });
+  const cursor = created.unwrap()[1].id;
+
+  const items = await client.listQuery<TestEntity>({ key: 'entity', before: cursor });
+  const result = items.unwrap();
+
+  expect(Object.keys(result)).toHaveLength(1);
+  expect(result).toMatchObject({
+    'entity-a': {
+      a: 1,
+      b: 2,
+      c: 3,
+    },
+  });
+});
+
+test('able to list entities after a specific entity', async () => {
+  const client = getStorageClient();
+
+  const created = await client.batchCreateQuery<TestEntity>({
+    entries: {
+      'entity-a': {
+        a: 1,
+        b: 2,
+        c: 3,
+      },
+      'entity-b': {
+        a: 4,
+        b: 5,
+        c: 6,
+      },
+      'entity-c': {
+        a: 7,
+        b: 8,
+        c: 9,
+      },
+    },
+  });
+  const cursor = created.unwrap()[0].id;
+
+  const items = await client.listQuery<TestEntity>({
+    key: 'entity',
+    after: cursor,
+    first: 1,
+  });
+  const result = items.unwrap();
+
+  expect(Object.keys(result)).toHaveLength(1);
+  expect(result).toMatchObject({
+    'entity-b': {
+      a: 4,
+      b: 5,
+      c: 6,
+    },
+  });
+});
+
+test('able to list entities before a specific entity', async () => {
+  const client = getStorageClient();
+
+  const created = await client.batchCreateQuery<TestEntity>({
+    entries: {
+      'entity-a': {
+        a: 1,
+        b: 2,
+        c: 3,
+      },
+      'entity-b': {
+        a: 4,
+        b: 5,
+        c: 6,
+      },
+      'entity-c': {
+        a: 7,
+        b: 8,
+        c: 9,
+      },
+    },
+  });
+  const cursor = created.unwrap()[2].id;
+
+  const items = await client.listQuery<TestEntity>({
+    key: 'entity',
+    before: cursor,
+    last: 1,
+  });
+  const result = items.unwrap();
+
+  expect(Object.keys(result)).toHaveLength(1);
+  expect(result).toMatchObject({
+    'entity-b': {
+      a: 4,
+      b: 5,
+      c: 6,
+    },
+  });
+});
+
+test('able to perform a ranged list query', async () => {
+  const client = getStorageClient();
+
+  const created = await client.batchCreateQuery<TestEntity>({
+    entries: {
+      'entity-a': {
+        a: 1,
+        b: 2,
+        c: 3,
+      },
+      'entity-b': {
+        a: 4,
+        b: 5,
+        c: 6,
+      },
+      'entity-c': {
+        a: 7,
+        b: 8,
+        c: 9,
+      },
+    },
+  });
+
+  const items = await client.listQuery<TestEntity>({
+    key: 'entity',
+    query: { type: 'range', min: 5, max: 8, property: 'b' },
+  });
+  const result = items.unwrap();
+
+  expect(Object.keys(result)).toEqual(['entity-b', 'entity-c']);
 });
